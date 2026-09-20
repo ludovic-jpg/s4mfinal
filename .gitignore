@@ -1,0 +1,22 @@
+# Dépendances et builds
+node_modules
+dist
+coverage
+playwright-report
+test-results
+
+# Données locales : base embarquée, archive des pièces, boîte d'envoi
+donnees
+
+# Secrets — seul .env.example est versionné
+.env
+.env.*
+!.env.example
+
+# Divers
+*.log
+.DS_Store
+Thumbs.db
+.vscode/*
+!.vscode/extensions.json
+.idea

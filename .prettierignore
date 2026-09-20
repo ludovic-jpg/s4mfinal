@@ -1,0 +1,9 @@
+dist
+node_modules
+donnees
+drizzle
+coverage
+gabarits
+src/client/routeTree.gen.ts
+src/domaine/referentiel/*.genere.ts
+package-lock.json
