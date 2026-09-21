@@ -28,6 +28,8 @@
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@types/node": "^22.20.4",
+    "@types/nodemailer": "^8.0.2",
+    "drizzle-kit": "^0.31.10",
     "eslint": "^10.11.0",
     "eslint-config-prettier": "^10.1.8",
     "prettier": "^3.9.8",
@@ -35,5 +37,16 @@
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.70.0",
     "vitest": "^5.0.1"
+  },
+  "dependencies": {
+    "@electric-sql/pglite": "^0.5.8",
+    "@hono/node-server": "^2.1.1",
+    "@hono/zod-validator": "^0.9.1",
+    "drizzle-orm": "^0.45.2",
+    "hono": "^4.13.8",
+    "nodemailer": "^10.0.10",
+    "playwright-core": "^1.63.0",
+    "postgres": "^3.4.9",
+    "zod": "^4.6.5"
   }
 }

@@ -1,0 +1,90 @@
+/** Gabarits des e-mails automatiques. Texte sobre, identité de l'organisme toujours issue de sa configuration. */
+import { echapperHtml as e } from "@/domaine/gabarits/moteur";
+
+export interface Courriel {
+  sujet: string;
+  corps_html: string;
+}
+
+function habiller(ofNom: string, titre: string, paragraphes: string[], bouton?: { libelle: string; url: string }): string {
+  return `<div style="font-family:Inter,Segoe UI,Arial,sans-serif;font-size:15px;line-height:1.55;color:#1f2a24;max-width:560px;margin:0 auto;padding:24px">
+<div style="font-weight:700;color:#1d6a45;letter-spacing:.02em;margin-bottom:18px">${e(ofNom)}</div>
+<h1 style="font-size:20px;margin:0 0 14px">${e(titre)}</h1>
+${paragraphes.map((p) => `<p style="margin:0 0 12px">${p}</p>`).join("\n")}
+${bouton ? `<p style="margin:22px 0"><a href="${e(bouton.url)}" style="background:#1d6a45;color:#fff;text-decoration:none;padding:11px 18px;border-radius:6px;font-weight:600">${e(bouton.libelle)}</a></p>` : ""}
+<p style="margin-top:26px;font-size:12px;color:#5b6472">Message automatique envoyé par la plateforme de ${e(ofNom)}.</p>
+</div>`;
+}
+
+export const courriels = {
+  invitationApprenant: (a: { of_nom: string; prenom: string; formateur: string; formation: string; lien: string }): Courriel => ({
+    sujet: `Votre espace personnel — ${a.formation}`,
+    corps_html: habiller(a.of_nom, `Bonjour ${a.prenom},`, [
+      `${e(a.formateur)} vous invite à rejoindre votre espace personnel pour la formation <strong>${e(a.formation)}</strong>.`,
+      "Vous y trouverez les documents qui vous concernent. Vous pourrez les signer en ligne, ou les télécharger pour les signer puis les redéposer.",
+      "Ce lien est personnel et valable 14 jours. Il vous permet de choisir votre mot de passe.",
+    ], { libelle: "Accéder à mon espace", url: a.lien }),
+  }),
+
+  relanceApprenant: (a: { of_nom: string; prenom: string; formation: string; pieces: string[]; lien: string }): Courriel => ({
+    sujet: `Rappel — documents en attente pour « ${a.formation} »`,
+    corps_html: habiller(a.of_nom, `Bonjour ${a.prenom},`, [
+      `Des documents attendent votre retour pour la formation <strong>${e(a.formation)}</strong> :`,
+      `<ul>${a.pieces.map((p) => `<li>${e(p)}</li>`).join("")}</ul>`,
+      "Quelques minutes suffisent : tout se fait depuis votre espace personnel.",
+    ], { libelle: "Ouvrir mon espace", url: a.lien }),
+  }),
+
+  decisionCandidature: (a: { of_nom: string; prenom: string; validee: boolean; motif: string; lien: string }): Courriel => ({
+    sujet: a.validee ? "Votre candidature est validée" : "Suite donnée à votre candidature",
+    corps_html: habiller(
+      a.of_nom,
+      `Bonjour ${a.prenom},`,
+      a.validee
+        ? ["Votre candidature de formateur est <strong>validée</strong>. Vous pouvez dès maintenant créer vos formations et instruire vos dossiers."]
+        : ["Après étude, votre candidature de formateur <strong>n'a pas été retenue</strong> en l'état.", a.motif ? `Motif indiqué : ${e(a.motif)}` : "", "Vous pouvez compléter votre dossier et le soumettre à nouveau."].filter(Boolean),
+      { libelle: "Ouvrir mon espace", url: a.lien },
+    ),
+  }),
+
+  candidatureSoumise: (a: { of_nom: string; candidat: string; lien: string }): Courriel => ({
+    sujet: `Nouvelle candidature de formateur — ${a.candidat}`,
+    corps_html: habiller(a.of_nom, "Une candidature attend votre décision", [`${e(a.candidat)} vient de soumettre sa candidature de formateur.`], { libelle: "Étudier la candidature", url: a.lien }),
+  }),
+
+  demandeValidation: (a: { of_nom: string; formateur: string; reference: string; formation: string; lien: string }): Courriel => ({
+    sujet: `Dossier ${a.reference} à valider`,
+    corps_html: habiller(a.of_nom, "Un dossier attend votre validation", [`${e(a.formateur)} demande la validation du dossier <strong>${e(a.reference)}</strong> — ${e(a.formation)}.`], { libelle: "Ouvrir le dossier", url: a.lien }),
+  }),
+
+  renvoiEnBrouillon: (a: { of_nom: string; prenom: string; reference: string; motif: string; lien: string }): Courriel => ({
+    sujet: `Dossier ${a.reference} — corrections demandées`,
+    corps_html: habiller(a.of_nom, `Bonjour ${a.prenom},`, [`Le dossier <strong>${e(a.reference)}</strong> vous est renvoyé pour correction.`, `Motif : ${e(a.motif)}`], { libelle: "Corriger le dossier", url: a.lien }),
+  }),
+
+  piecesFinancementEntreprise: (a: { of_nom: string; representant: string; formation: string; stagiaires: string; reference: string; pieces: string[] }): Courriel => ({
+    sujet: `Votre demande de financement — ${a.formation}`,
+    corps_html: habiller(a.of_nom, `Bonjour ${a.representant},`, [
+      `Le dossier de formation <strong>${e(a.reference)}</strong> — ${e(a.formation)} — est validé par notre organisme pour ${e(a.stagiaires)}.`,
+      "Vous trouverez en pièces jointes l'ensemble des documents nécessaires au dépôt de votre demande de financement :",
+      `<ul>${a.pieces.map((p) => `<li>${e(p)}</li>`).join("")}</ul>`,
+      "Dès réception de l'accord de prise en charge, il suffit de nous le transmettre ou de le déposer dans l'espace du stagiaire.",
+    ]),
+  }),
+
+  odmFormateur: (a: { of_nom: string; prenom: string; reference: string; formation: string; lien: string }): Courriel => ({
+    sujet: `Ordre de mission à signer — dossier ${a.reference}`,
+    corps_html: habiller(a.of_nom, `Bonjour ${a.prenom},`, [
+      `L'accord de financement du dossier <strong>${e(a.reference)}</strong> — ${e(a.formation)} — est enregistré.`,
+      "Votre ordre de mission est joint. Signez-le en ligne dans l'espace « Communication avec l'OF », ou retournez-le signé.",
+    ], { libelle: "Signer l'ordre de mission", url: a.lien }),
+  }),
+
+  elementsPedagogiques: (a: { of_nom: string; prenom: string; formation: string; date_debut: string; lien: string }): Courriel => ({
+    sujet: `Votre convocation — ${a.formation}`,
+    corps_html: habiller(a.of_nom, `Bonjour ${a.prenom},`, [
+      `Votre formation <strong>${e(a.formation)}</strong> débute le ${e(a.date_debut)}. Votre convocation est jointe.`,
+      "Les supports pédagogiques mis à votre disposition par votre formateur sont accessibles dans votre espace personnel.",
+    ], { libelle: "Ouvrir mon espace", url: a.lien }),
+  }),
+};

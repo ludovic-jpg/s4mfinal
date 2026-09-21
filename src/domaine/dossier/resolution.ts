@@ -3,7 +3,7 @@
  * C'est ici que les tables enfants (stagiaires, séances) redeviennent `stagiaire_1..8` et `session_1..20`
  * — uniquement le temps de générer le document (règle d'or n° 5).
  */
-import { RANG_MAX } from "../referentiel/variables";
+import { RANG_MAX, estVariableConnue } from "../referentiel/variables";
 import type { Variables } from "../gabarits/moteur";
 import type { AgregatDossier } from "./agregat";
 import { ajouterJours, calculer, niveauAtteinte } from "./calculs";
@@ -125,9 +125,12 @@ export function resoudreVariables(d: AgregatDossier, options: OptionsResolution 
   return v;
 }
 
-/** Ne garde que les propriétés textuelles d'un objet (les nombres sont formatés explicitement ailleurs). */
+/**
+ * Ne garde que les propriétés textuelles qui SONT des variables du dictionnaire : une ligne de base de
+ * données porte aussi des colonnes techniques (identifiants, statuts) qui n'ont rien à faire dans une pièce.
+ */
 function texteSeulement(objet: object): Variables {
   const sortie: Variables = {};
-  for (const [cle, valeur] of Object.entries(objet)) if (typeof valeur === "string") sortie[cle] = valeur;
+  for (const [cle, valeur] of Object.entries(objet)) if (typeof valeur === "string" && estVariableConnue(cle)) sortie[cle] = valeur;
   return sortie;
 }
