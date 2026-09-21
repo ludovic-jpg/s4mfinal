@@ -12,7 +12,7 @@
     "dev:api": "tsx watch src/serveur/demarrer.ts",
     "dev:web": "vite",
     "build": "vite build",
-    "start": "NODE_ENV=production tsx src/serveur/demarrer.ts",
+    "start": "npm run build && tsx src/serveur/demarrer.ts",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
@@ -22,7 +22,6 @@
     "format:check": "prettier --check .",
     "db:generate": "drizzle-kit generate",
     "db:seed": "tsx src/serveur/bd/semence.ts",
-    "referentiel": "tsx scripts/generer-referentiel.ts",
     "verifier": "npm run typecheck && npm run lint && npm run test"
   },
   "devDependencies": {
@@ -63,5 +62,6 @@
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "zod": "^4.6.5"
-  }
+  },
+  "license": "UNLICENSED"
 }

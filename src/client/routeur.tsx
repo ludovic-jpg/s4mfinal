@@ -1,5 +1,6 @@
 /** Routes de l'application, déclarées en code : un seul fichier à lire pour connaître tous les écrans. */
-import { createRootRoute, createRoute, createRouter, Outlet } from "@tanstack/react-router";
+import { createRootRoute, createRoute, createRouter, Outlet, redirect } from "@tanstack/react-router";
+import { requeteMoi, requetes } from "./requetes";
 import { Cadre } from "./ecrans/Cadre";
 import { Connexion, Inscription, Invitation } from "./ecrans/Acces";
 import { Accueil } from "./ecrans/Accueil";
@@ -15,12 +16,27 @@ import { Bpf, Courriers, Compte } from "./ecrans/Divers";
 const racine = createRootRoute({ component: Outlet, notFoundComponent: () => <p className="p-10 text-encre-2">Cette page n'existe pas.</p> });
 
 // Accès public
-const connexion = createRoute({ getParentRoute: () => racine, path: "/connexion", component: Connexion });
+const connexion = createRoute({
+  getParentRoute: () => racine,
+  path: "/connexion",
+  component: Connexion,
+  validateSearch: (s: Record<string, unknown>): { retour?: string } => (typeof s.retour === "string" ? { retour: s.retour } : {}),
+});
 const inscription = createRoute({ getParentRoute: () => racine, path: "/inscription", component: Inscription });
 const invitation = createRoute({ getParentRoute: () => racine, path: "/invitation/$jeton", component: Invitation });
 
 // Application : tout ce qui suit passe par le cadre, qui exige une session.
-const app = createRoute({ getParentRoute: () => racine, id: "app", component: Cadre });
+const app = createRoute({
+  getParentRoute: () => racine,
+  id: "app",
+  component: Cadre,
+  // Garde d'accès, AVANT tout rendu : pas de session → connexion ; formateur non validé → sa candidature (F-ONB-02).
+  beforeLoad: async ({ location }) => {
+    const { acteur } = await requetes.ensureQueryData(requeteMoi);
+    if (!acteur) throw redirect({ to: "/connexion", search: location.pathname === "/" ? {} : { retour: location.pathname } });
+    if (acteur.role === "formateur" && !acteur.formateur_valide && !["/candidature", "/compte"].includes(location.pathname)) throw redirect({ to: "/candidature" });
+  },
+});
 const accueil = createRoute({ getParentRoute: () => app, path: "/", component: Accueil });
 const nouveauDossier = createRoute({ getParentRoute: () => app, path: "/dossiers/nouveau", component: NouveauDossier });
 const dossier = createRoute({ getParentRoute: () => app, path: "/dossiers/$id", component: EcranDossier });

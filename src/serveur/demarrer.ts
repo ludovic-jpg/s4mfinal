@@ -6,8 +6,8 @@ import { serve } from "@hono/node-server";
 import { serveStatic } from "@hono/node-server/serve-static";
 import { lireConfig } from "./config";
 import { ouvrirBase } from "./bd/connexion";
-import { organismeExiste } from "./bd/amorce";
-import { semer } from "./bd/semence";
+import { creerOrganismeVierge, creerUtilisateur, organismeExiste } from "./bd/amorce";
+import { COMPTES_DEMO, MDP_DEMO, semer } from "./bd/semence";
 import { creerApp } from "./http/app";
 import { ArchiveLocale } from "./ports/archive";
 import { CourrierJournalise, creerTransportSmtp } from "./ports/courrier";
@@ -21,19 +21,29 @@ const { bd, fermer } = await ouvrirBase(config.DATABASE_URL);
 const archive = new ArchiveLocale(config.ARCHIVE_DIR);
 const pdf = new ConvertisseurChromium();
 const expedition = config.COURRIER_MODE === "smtp" && config.SMTP_URL ? { transport: creerTransportSmtp(config.SMTP_URL), expediteur: config.COURRIER_EXPEDITEUR } : null;
-const s: Services = { bd, archive, courrier: new CourrierJournalise(bd, archive, expedition), pdf, horloge: horlogeSysteme, appUrl: config.APP_URL };
+const dist = resolve("dist");
+const interfaceCompilee = existsSync(join(dist, "index.html"));
+const appUrl = config.APP_URL || (interfaceCompilee ? `http://localhost:${config.PORT}` : "http://localhost:5173");
+const s: Services = { bd, archive, courrier: new CourrierJournalise(bd, archive, expedition), pdf, horloge: horlogeSysteme, appUrl };
 
-// Première ouverture : la base est vide, on y dépose un jeu de démonstration (données fictives).
+// Première ouverture : la base est vide. Soit un jeu de démonstration (données fictives), soit un organisme
+// vierge à configurer et son premier administrateur (AMORCE=vide).
 if (!(await organismeExiste(s))) {
-  console.log("[s4m] base vide — création du jeu de démonstration…");
-  await semer(s);
+  if (config.AMORCE === "vide") {
+    const of_id = await creerOrganismeVierge(s);
+    await creerUtilisateur(s, { of_id, email: config.ADMIN_EMAIL, mot_de_passe: config.ADMIN_MOT_DE_PASSE, role: "admin", prenom: "Administrateur", nom: "" });
+    console.log(`[s4m] base vide — organisme vierge créé. Connectez-vous avec ${config.ADMIN_EMAIL}, puis ouvrez « Organisme ».`);
+  } else {
+    console.log("[s4m] base vide — création du jeu de démonstration…");
+    await semer(s);
+    console.log(`[s4m] comptes de démonstration (mot de passe : ${MDP_DEMO}) : ${COMPTES_DEMO.map((c) => c.email).join(", ")}`);
+  }
 }
 
 const app = creerApp(s, { production: config.NODE_ENV === "production" });
 
 // En production, le même serveur sert l'interface compilée (`npm run build` → dist/).
-const dist = resolve("dist");
-if (existsSync(join(dist, "index.html"))) {
+if (interfaceCompilee) {
   app.use("/*", serveStatic({ root: "./dist" }));
   const index = readFileSync(join(dist, "index.html"), "utf8");
   app.get("*", (c) => c.html(index));
@@ -44,7 +54,7 @@ void tacheQuotidienne();
 const minuterie = setInterval(tacheQuotidienne, 24 * 3600 * 1000);
 
 const serveur = serve({ fetch: app.fetch, port: config.PORT }, (info) => {
-  console.log(`[s4m] API prête sur http://localhost:${info.port}`);
+  console.log(`[s4m] ${interfaceCompilee ? "application" : "API"} prête sur http://localhost:${info.port}${interfaceCompilee ? "" : " — interface : npm run dev:web"}`);
   console.log(`[s4m] base : ${config.DATABASE_URL} · archive : ${config.ARCHIVE_DIR}`);
   console.log(`[s4m] courrier : ${expedition ? "SMTP" : "boîte locale (rien ne part)"} · PDF : ${pdf.disponible ? "Chromium trouvé" : "indisponible — pièces archivées en HTML"}`);
 });

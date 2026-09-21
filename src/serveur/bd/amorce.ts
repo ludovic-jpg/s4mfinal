@@ -12,6 +12,13 @@ export async function creerOrganisme(s: Services, surcharge: Partial<typeof orga
   return id;
 }
 
+/** Organisme SANS identité : tout est à saisir dans l'écran « Organisme » avant de pouvoir valider un dossier. */
+export async function creerOrganismeVierge(s: Services): Promise<string> {
+  const id = nouvelId();
+  await s.bd.insert(organismeFormation).values({ id });
+  return id;
+}
+
 export async function creerUtilisateur(
   s: Services,
   donnees: { of_id: string; email: string; mot_de_passe: string; role: "admin" | "formateur" | "apprenant"; prenom: string; nom: string },

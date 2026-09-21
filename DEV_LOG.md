@@ -70,3 +70,73 @@ Ces règles sont pures ; elles ont été écrites et testées avant la base de d
 - **Signature** (`src/domaine/signature/preuve.ts`) : repris de B l'empreinte SHA-256 et le certificat ; ajoutés le tracé manuscrit, le lieu, le contrôle du format du tracé (PNG uniquement, taille bornée) et la vérification d'intégrité.
 - **BPF** (`src/domaine/bpf/agregation.ts`) : agrégation par exercice (date de fin), par origine de financement et par formateur ; export CSV lisible par Excel en français.
 - **Formulaires et QCM** (`src/domaine/formulaires/`) : recueil des besoins et grille à chaud repris des matrices Word ; le corrigé d'un QCM n'est jamais transmis à l'apprenant.
+
+## J3 — Base de données et ports ✅
+
+**Critères d'acceptation.** Une base PostgreSQL réelle sans rien installer ; le schéma et le code ne peuvent pas diverger ; chaque dépendance extérieure (disque, e-mail, PDF, horloge) est remplaçable en test.
+
+**Réalisé.** `src/serveur/bd/schema.ts` (23 tables, Drizzle), `drizzle/0000_initial.sql`, `bd/connexion.ts`, `ports/{archive,courrier,pdf,divers}.ts`, `tests/banc.ts`.
+
+**Choix techniques.**
+- **PGlite** : un vrai PostgreSQL compilé en WebAssembly, dans un dossier. Même SQL, mêmes migrations qu'un serveur PostgreSQL ; `DATABASE_URL=postgres://…` bascule sans changer une ligne de code métier.
+- **Les migrations sont rejouées à chaque démarrage.** C'est la réponse structurelle au défaut principal de la base B : 105 erreurs de typage parce que le code lisait des tables absentes du schéma réellement déployé. Ici, une base en retard sur le code est impossible.
+- **Les tests d'intégration tournent sur la vraie base**, en mémoire, recréée pour chaque fichier de test. Aucun bouchon de base de données : un bouchon aurait masqué le bogue Zod décrit en J6.
+- PDF par Chromium (`playwright-core`) : Chrome, Edge ou Chromium détecté automatiquement ; sans navigateur, l'application archive du HTML imprimable et continue de fonctionner.
+
+## J4 — Comptes, sessions, postulation (Module 1) ✅ — 9 tests
+
+**Réalisé.** `services/{auth,invitations,candidatures,courriels}.ts`.
+
+**Écart assumé par rapport au cadrage.** Le plan annonçait la bibliothèque better-auth. Le besoin réel est réduit (e-mail + mot de passe, invitations, trois rôles) et les flux sont spécifiques (candidature à valider, invitation d'apprenant à usage unique). L'authentification est donc écrite sur les primitives de Node : `scrypt`, jetons opaques de 256 bits **stockés hachés**, cookie `httpOnly` `SameSite=Lax` de 12 h, réponse identique pour « compte inconnu » et « mauvais mot de passe », blocage après 5 échecs en 15 min, fermeture de toutes les sessions au changement de mot de passe. Contre le CSRF : en-tête `x-requested-with` exigé sur toute écriture. → Hypothèse 13 : **à faire relire par un tiers avant mise en production.**
+
+## J5 — Formations, outils, coffre-fort, génération (Modules 2, 3, 7) ✅
+
+**Réalisé.** `services/{formations,repertoire,fichiers,agregat,generation}.ts`.
+
+**Choix techniques.** L'agrégat du dossier porte des propriétés **nommées comme les variables du référentiel** : la résolution des variables est une simple lecture, sans table de correspondance à maintenir. Fichiers déposés : extension sur liste blanche, taille bornée, nom de stockage généré (jamais celui de l'utilisateur), empreinte SHA-256.
+
+## J6 à J10 — Dossiers, pipeline exécuté, retours, signature, émargement, évaluations ✅ — 27 tests
+
+**Réalisé.** `services/{dossiers,pipeline,retours,evaluations,taches}.ts` ; `tests/integration/parcours-complet.test.ts` déroule un dossier de **Brouillon à Archivé**, puis un refus de financement, en vérifiant à chaque pas les droits de chaque rôle.
+
+**Bogue réel attrapé par ce test.** `schema.partial()` de Zod conserve les `.default("")` : modifier **un** champ d'une entreprise remettait à vide son SIRET et son représentant. Corrigé par `validerPartiel()` (`services/socle.ts`), qui ne retient que les clés effectivement envoyées. Aucun test unitaire ne l'aurait vu ; le parcours complet, si.
+
+**Choix techniques.**
+- Le service `pipeline` n'a **aucune règle** : il demande au noyau (`transiter`) si l'action est permise, puis exécute les effets déclarés. Une règle du cahier des charges se lit donc à un seul endroit.
+- Correctif de l'audit du 01/09/2026 : dans la base B, un formateur pouvait pousser son propre dossier jusqu'au paiement. Ici, valider, enregistrer un paiement et archiver sont réservés à l'admin, et c'est vérifié côté serveur, par le noyau.
+- Signature : l'horodatage est celui **du serveur** ; l'empreinte du document signé est enregistrée, et `verifierIntegritePiece` détecte toute modification ultérieure du fichier archivé.
+- Numérotation `ADF-AAAA-NNNN` par organisme et par année, par compteur transactionnel.
+
+## J11-J12 — BPF et RGPD (Modules 8, 9) ✅ — 6 tests
+
+**Réalisé.** `services/{bpf,rgpd}.ts`. Suppression de compte : phrase de confirmation à recopier, effacement des champs identifiants et des pièces de candidature, conservation des dossiers avec un formateur anonymisé ; l'adresse e-mail est libérée. Les pièces **déjà archivées** ne sont pas réécrites (obligation de conservation) — hypothèse 10.
+
+## API et interface ✅ — 9 tests d'API, 5 parcours navigateur
+
+**Réalisé.** `http/app.ts` (API mince), `src/client/` (13 écrans), `tests/e2e/parcours.spec.ts`.
+
+**Choix techniques.**
+- **Les types de l'interface sont déduits des services du serveur** (`src/client/api.ts`) : renommer un champ côté serveur casse la compilation de l'écran qui le lit. C'est le second verrou contre la dérive constatée dans la base B.
+- TanStack Router en routes déclarées dans le code, TanStack Query pour l'état serveur ; aucun gestionnaire d'état global.
+- Aperçu des pièces dans un `iframe` `sandbox`, servi avec une CSP stricte : un gabarit ne peut exécuter aucun script.
+
+**Bogue réel attrapé par le test navigateur.** Une URL protégée ouverte sans session **gelait l'onglet** : `<Navigate>` dans le cadre de l'application bouclait sur le rendu. La garde est maintenant dans `beforeLoad` du routeur (`redirect`), avec un client de requêtes partagé (`src/client/requetes.ts`).
+
+**Parti pris de conception** (principes de la skill Hallmark ; ses fichiers de référence n'étaient pas disponibles, seules les règles du `SKILL.md` ont été appliquées). Public : des formateurs indépendants, pas des informaticiens ; usage : administratif, répétitif, parfois sur téléphone ; ton : sobre et rassurant. D'où : jetons de couleur OKLCH verrouillés (vert #1D6A45, jaune #F2C230), Inter + Poppins servies localement, aucun titre en italique, les huit états de chaque composant interactif, animations sur `transform`/`opacity` seulement, respect de `prefers-reduced-motion`, aucun défilement horizontal à 320, 375 et 768 px (vérifié par test).
+
+## J13 — Finitions, portabilité, documentation ✅
+
+- **Windows** : `npm start` n'utilise plus la syntaxe `VAR=valeur commande` ; la préparation des tests navigateur passe par Node et non par `rm -rf`.
+- **`AMORCE=vide`** : premier démarrage sur un organisme vierge et un seul compte administrateur (`ADMIN_EMAIL`, `ADMIN_MOT_DE_PASSE`), pour passer du jeu de démonstration au réel sans toucher au code. `APP_URL` est déduite du port si elle n'est pas fournie. `SESSION_SECRET`, annoncé puis inutile (les jetons sont opaques et hachés), est retiré.
+- Impression : marge interne des gabarits corrigée (la bordure droite des tableaux était rognée dans le PDF). Signature : le tracé n'est plus effacé quand le clavier d'un téléphone redimensionne la page. Polices réduites au sous-ensemble latin.
+- CI : second travail `bout-en-bout` (navigateur), après `verifier`.
+- Documentation : `README.md`, `docs/ARCHITECTURE.md`, `docs/HYPOTHESES.md` (20 points), `docs/TRACABILITE.md` (51 exigences et 8 règles → code → test), `docs/GUIDE_GIT.md`.
+
+**Checkpoint final.** `npm run verifier` : typage propre, lint propre, **182 tests verts** (12 fichiers). `npm run build` : OK. `npm run test:e2e` : **5/5**.
+
+## Dette connue, à traiter ensuite
+
+1. Hypothèses 11 (qui signe la convention), 12 (valeur de la signature) et 13 (relecture de l'authentification) : **bloquantes avant toute mise en production**.
+2. Aucune purge automatique à l'échéance de conservation (hypothèse 9) ; aucun export « mes données » pour l'apprenant.
+3. Pas de reprise des dossiers de l'ancienne plateforme. `domaine/gabarits/migration.ts` sait déjà convertir les anciens gabarits ; les données restent à faire.
+4. Un seul fichier de migration : à partir de maintenant, toute évolution du schéma passe par `npm run db:generate` et un **nouveau** fichier, jamais par la modification de `0000_initial.sql`.

@@ -1,6 +1,6 @@
 /** Cadre de l'application : exige une session, affiche la navigation propre à chaque rôle (rail latéral, tiroir sur mobile). */
 import { useEffect, useState } from "react";
-import { Link, Navigate, Outlet, useLocation } from "@tanstack/react-router";
+import { Link, Outlet, useLocation } from "@tanstack/react-router";
 import { BookOpen, Building2, ClipboardCheck, FileSpreadsheet, FolderKanban, LogOut, Mail, Menu, PencilRuler, ShieldCheck, UserRound, UsersRound, X } from "lucide-react";
 import { useDeconnexion, useMoi } from "../session";
 import { Chargement, cx } from "../ui/base";
@@ -41,11 +41,9 @@ export function Cadre() {
   const [tiroir, setTiroir] = useState(false);
   useEffect(() => setTiroir(false), [pathname]);
 
-  if (moi.isPending) return <div className="px-8"><Chargement /></div>;
+  // La garde du routeur (`beforeLoad`) a déjà vérifié la session : ici, l'acteur existe.
   const acteur = moi.data?.acteur;
-  if (!acteur) return <Navigate to="/connexion" />;
-  // Un formateur dont la candidature n'est pas validée n'a accès qu'à sa candidature et à son compte (F-ONB-02).
-  if (acteur.role === "formateur" && !acteur.formateur_valide && !["/candidature", "/compte"].includes(pathname)) return <Navigate to="/candidature" />;
+  if (!acteur) return <div className="px-8"><Chargement /></div>;
 
   const liens = liensPour(acteur.role, acteur.formateur_valide);
   const navigation = (

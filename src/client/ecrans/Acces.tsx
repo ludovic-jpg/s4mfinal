@@ -52,6 +52,7 @@ export function Connexion() {
     mutationFn: () => api.post("/auth/connexion", { email, mot_de_passe: mdp }),
     onSuccess: () => {
       requetes.clear();
+      // Rechargement complet volontaire : la session change, tout l'état en mémoire doit repartir de zéro.
       const retour = new URLSearchParams(location.search).get("retour");
       location.assign(retour?.startsWith("/") && !retour.startsWith("//") ? retour : "/");
     },

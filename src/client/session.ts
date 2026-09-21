@@ -1,8 +1,9 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { api, type Moi } from "./api";
+import { api } from "./api";
+import { requeteMoi } from "./requetes";
 
 export function useMoi() {
-  return useQuery({ queryKey: ["moi"], queryFn: () => api.get<Moi>("/auth/moi"), staleTime: 60_000 });
+  return useQuery(requeteMoi);
 }
 
 /** L'acteur connecté. À n'utiliser que sous le cadre de l'application, qui garantit sa présence. */

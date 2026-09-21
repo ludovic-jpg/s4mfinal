@@ -58,7 +58,7 @@ async function acteurDe(s: Services, utilisateur_id: string): Promise<Acteur> {
 type Jalon = "brouillon" | "soumis" | "valide" | "accord" | "en_cours" | "termine" | "paiement" | "archive" | "refus";
 
 export async function semer(s: Services): Promise<void> {
-  const of_id = await creerOrganisme(s, { id: "of-demo" });
+  const of_id = await creerOrganisme(s, { id: "of-demo", signature_representant_png: tracePngDemo(5) });
   const admin = await acteurDe(s, await creerUtilisateur(s, { of_id, email: COMPTES_DEMO[0]!.email, mot_de_passe: MDP_DEMO, role: "admin", prenom: "Claire", nom: "Exemple" }));
   const sophie = await acteurDe(s, (await creerFormateurValide(s, { of_id, email: COMPTES_DEMO[1]!.email, mot_de_passe: MDP_DEMO, prenom: "Sophie", nom: "Lambert" })).utilisateur_id);
 

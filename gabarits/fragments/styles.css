@@ -57,4 +57,6 @@ footer.pied { margin-top: 9mm; padding-top: 3mm; border-top: 1px solid #d6ddd8; 
 .qcm .coche { display: inline-block; width: 3.2mm; height: 3.2mm; border: 1px solid #5b6472; border-radius: .6mm; margin-right: 2mm; vertical-align: -0.4mm; }
 .qcm .coche.choisie { background: var(--of-couleur, #1d6a45); border-color: var(--of-couleur, #1d6a45); }
 .reponse { border: 1px solid #d6ddd8; border-radius: 2mm; padding: 2.5mm 3.5mm; min-height: 12mm; margin: 1mm 0 4mm; background: #fcfdfc; }
+/* À l'impression, un demi-millimètre de marge interne évite que le filet droit des tableaux soit rogné. */
+@media print { .page, .page.paysage { max-width: none; padding: 0 0.5mm; } }
 @media screen { body { background: #eef1ef; } .page { background: #fff; padding: 14mm 15mm; margin: 8mm auto; box-shadow: 0 1px 8px rgba(31,42,36,.12); max-width: 210mm; } .page.paysage { max-width: 297mm; } }
