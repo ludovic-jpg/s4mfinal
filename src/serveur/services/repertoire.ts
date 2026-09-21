@@ -3,7 +3,7 @@ import { and, asc, eq } from "drizzle-orm";
 import { z } from "zod";
 import { entrepriseCliente, stagiaire } from "../bd/schema";
 import { nouvelId } from "../ports/divers";
-import { exigerFormateurValide, introuvable, type Acteur, type Services } from "./socle";
+import { exigerFormateurValide, introuvable, validerPartiel, type Acteur, type Services } from "./socle";
 
 const email = z.union([z.literal(""), z.string().trim().toLowerCase().email("Adresse e-mail invalide.")]);
 
@@ -47,7 +47,8 @@ export async function enregistrerEntreprise(s: Services, acteur: Acteur, donnees
   const formateur_id = exigerFormateurValide(acteur);
   if (id) {
     await lireEntreprise(s, acteur, id);
-    await s.bd.update(entrepriseCliente).set(SchemaEntreprise.partial().parse(donnees)).where(eq(entrepriseCliente.id, id));
+    const valeurs = validerPartiel(SchemaEntreprise, donnees);
+    if (Object.keys(valeurs).length > 0) await s.bd.update(entrepriseCliente).set(valeurs).where(eq(entrepriseCliente.id, id));
     return lireEntreprise(s, acteur, id);
   }
   const nouveauId = nouvelId();
@@ -69,11 +70,11 @@ export async function lireStagiaire(s: Services, acteur: Acteur, id: string) {
 
 export async function enregistrerStagiaire(s: Services, acteur: Acteur, donnees: unknown, id?: string) {
   const formateur_id = exigerFormateurValide(acteur);
-  const valeurs = id ? SchemaStagiaire.partial().parse(donnees) : SchemaStagiaire.parse(donnees);
+  const valeurs = id ? validerPartiel(SchemaStagiaire, donnees) : SchemaStagiaire.parse(donnees);
   if (valeurs.entreprise_id) await lireEntreprise(s, acteur, valeurs.entreprise_id);
   if (id) {
     await lireStagiaire(s, acteur, id);
-    await s.bd.update(stagiaire).set(valeurs).where(eq(stagiaire.id, id));
+    if (Object.keys(valeurs).length > 0) await s.bd.update(stagiaire).set(valeurs).where(eq(stagiaire.id, id));
     return lireStagiaire(s, acteur, id);
   }
   const nouveauId = nouvelId();

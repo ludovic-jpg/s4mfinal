@@ -1,4 +1,5 @@
 /** Socle commun des services applicatifs : dépendances injectées, acteur courant, erreurs métier. */
+import type { z } from "zod";
 import type { BaseDeDonnees } from "../bd/connexion";
 import type { Archive } from "../ports/archive";
 import type { Courrier } from "../ports/courrier";
@@ -75,4 +76,15 @@ export async function journaliser(
     detail: entree.detail ?? null,
     cree_le: s.horloge.maintenant(),
   });
+}
+
+/**
+ * Validation d'une MISE À JOUR partielle. Piège de Zod : `schema.partial()` applique quand même les valeurs
+ * par défaut des champs absents — une modification d'un seul champ effacerait tous les autres. On ne retient
+ * donc que les clés réellement envoyées. (Bogue attrapé par le test du parcours complet.)
+ */
+export function validerPartiel<T extends z.ZodRawShape>(schema: z.ZodObject<T>, donnees: unknown): Partial<z.infer<z.ZodObject<T>>> {
+  if (typeof donnees !== "object" || donnees === null) throw invalide("Données illisibles.");
+  const valeurs = schema.partial().parse(donnees) as Record<string, unknown>;
+  return Object.fromEntries(Object.entries(valeurs).filter(([cle]) => cle in donnees)) as Partial<z.infer<z.ZodObject<T>>>;
 }

@@ -245,6 +245,7 @@ CREATE TABLE "piece_dossier" (
 	"genere_le" timestamp with time zone,
 	"chemin_retour" text,
 	"nom_fichier_retour" text,
+	"empreinte_retour" text,
 	"mode_retour" text,
 	"retour_le" timestamp with time zone,
 	"retour_par" text,

@@ -305,7 +305,9 @@ export const pieceDossier = pgTable(
     /** Document retourné (archive « Retour ») : signé en ligne, ou déposé après signature hors ligne. */
     chemin_retour: text("chemin_retour"),
     nom_fichier_retour: text("nom_fichier_retour"),
-    mode_retour: text("mode_retour", { enum: ["signature", "depot"] }),
+    /** Empreinte SHA-256 du document retourné, tel qu'archivé : permet de prouver qu'il n'a pas été altéré depuis. */
+    empreinte_retour: text("empreinte_retour"),
+    mode_retour: text("mode_retour", { enum: ["signature", "depot", "formulaire"] }),
     retour_le: timestamp("retour_le", { withTimezone: true }),
     retour_par: text("retour_par").references(() => utilisateur.id, { onDelete: "set null" }),
     transmise_le: timestamp("transmise_le", { withTimezone: true }),

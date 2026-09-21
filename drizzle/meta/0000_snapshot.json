@@ -1,5 +1,5 @@
 {
-  "id": "ef415aec-9cb5-4f7c-8901-ee25cffff160",
+  "id": "4a663d68-a324-4695-8a22-1b48d567c4f0",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -2018,6 +2018,12 @@
         },
         "nom_fichier_retour": {
           "name": "nom_fichier_retour",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "empreinte_retour": {
+          "name": "empreinte_retour",
           "type": "text",
           "primaryKey": false,
           "notNull": false

@@ -21,6 +21,7 @@ export interface Archive {
 export function nomSur(nom: string): string {
   const propre = nom
     .normalize("NFC")
+    // eslint-disable-next-line no-control-regex -- les caractères de contrôle sont précisément ce qu'on veut retirer
     .replace(/[\\/:*?"<>|\u0000-\u001f]/g, "_")
     .replace(/\s+/g, " ")
     .trim()

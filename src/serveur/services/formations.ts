@@ -7,7 +7,7 @@ import { coffreFichier, dossierFormation, formation, modeleOutil, stagiaireDossi
 import { cheminCoffre } from "../ports/archive";
 import { nouvelId } from "../ports/divers";
 import { validerFichier, type FichierDepose } from "./fichiers";
-import { exigerFormateurValide, interdit, introuvable, invalide, type Acteur, type Services } from "./socle";
+import { exigerFormateurValide, interdit, introuvable, invalide, validerPartiel, type Acteur, type Services } from "./socle";
 
 // Champs alignés sur les variables `formation_*` du dictionnaire (F-FORM-01).
 export const SchemaFormation = z.object({
@@ -45,7 +45,7 @@ export async function creerFormation(s: Services, acteur: Acteur, donnees: unkno
 
 export async function modifierFormation(s: Services, acteur: Acteur, id: string, donnees: unknown) {
   await lireFormation(s, acteur, id);
-  const valeurs = SchemaFormation.partial().parse(donnees);
+  const valeurs = validerPartiel(SchemaFormation, donnees);
   if (Object.keys(valeurs).length > 0) await s.bd.update(formation).set(valeurs).where(eq(formation.id, id));
   return lireFormation(s, acteur, id);
 }
