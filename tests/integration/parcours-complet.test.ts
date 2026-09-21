@@ -195,7 +195,7 @@ describe("Étapes A et B — validation, financement", () => {
     expect((await piece(anne, "PRE")).statut).toBe("valide");
     expect((await piece(sophie, "PRE", ids.anne)).statut).toBe("valide");
     const carte = (await listerDossiers(b.s, sophie)).dossiers.find((x) => x.id === dossierId)!;
-    expect(carte.pieces_validees).toBe(5); // 2 recueils + 2 positionnements + le pré-dossier d'Anne
+    expect([carte.pieces_validees, carte.pieces_total]).toEqual([1, 4]); // le pré-dossier d'Anne, sur 2 pré-dossiers + convention + accord
 
     // F-ARCH-04/05 : classement automatique dans « Retour », avec le certificat de signature.
     const retour = b.archive.lister("ADF-2026-0001/Retour/").map((c) => c.split("/").pop());

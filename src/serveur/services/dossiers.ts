@@ -289,7 +289,9 @@ export async function listerDossiers(s: Services, acteur: Acteur) {
     sous_statuts: SOUS_STATUTS,
     dossiers: dossiers.map((d) => {
       const statut = d.sous_statut as SousStatut;
-      const suivies = pieces.filter((p) => p.dossier_id === d.id && definitionPiece(p.code as CodePiece).suiviStatut && peutVoir({ code: p.code as CodePiece, stagiaire_id: p.stagiaire_id }, acteur));
+      // Avancement affiché sur la carte : les pièces SUIVIES des deux espaces de communication (les enquêtes de
+      // satisfaction, gérées à part, ne font pas « reculer » un dossier archivé).
+      const suivies = pieces.filter((p) => p.dossier_id === d.id && definitionPiece(p.code as CodePiece).suiviStatut && definitionPiece(p.code as CodePiece).espace !== null && peutVoir({ code: p.code as CodePiece, stagiaire_id: p.stagiaire_id }, acteur));
       const form = formateurs.find((f) => f.id === d.formateur_id);
       return {
         id: d.id,
