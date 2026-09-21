@@ -130,6 +130,7 @@ Ces règles sont pures ; elles ont été écrites et testées avant la base de d
 - **`AMORCE=vide`** : premier démarrage sur un organisme vierge et un seul compte administrateur (`ADMIN_EMAIL`, `ADMIN_MOT_DE_PASSE`), pour passer du jeu de démonstration au réel sans toucher au code. `APP_URL` est déduite du port si elle n'est pas fournie. `SESSION_SECRET`, annoncé puis inutile (les jetons sont opaques et hachés), est retiré.
 - Impression : marge interne des gabarits corrigée (la bordure droite des tableaux était rognée dans le PDF). Signature : le tracé n'est plus effacé quand le clavier d'un téléphone redimensionne la page. Polices réduites au sous-ensemble latin.
 - CI : second travail `bout-en-bout` (navigateur), après `verifier`.
+- `.gitattributes` impose des fins de ligne LF : sous Windows, Git ne signale pas de faux changements.
 - Documentation : `README.md`, `docs/ARCHITECTURE.md`, `docs/HYPOTHESES.md` (20 points), `docs/TRACABILITE.md` (51 exigences et 8 règles → code → test), `docs/GUIDE_GIT.md`.
 
 **Checkpoint final.** `npm run verifier` : typage propre, lint propre, **182 tests verts** (12 fichiers). `npm run build` : OK. `npm run test:e2e` : **5/5**.

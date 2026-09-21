@@ -1,0 +1,8 @@
+# Fins de ligne identiques sur Windows, macOS et Linux : évite les faux « fichiers modifiés » et les échecs de Prettier.
+* text=auto eol=lf
+*.png binary
+*.ico binary
+*.woff2 binary
+*.pdf binary
+*.docx binary
+*.xlsx binary
