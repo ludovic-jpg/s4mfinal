@@ -102,7 +102,7 @@ export async function signerPiece(s: Services, acteur: Acteur, pieceId: string, 
   const code = piece.code as CodePiece;
   const def = definitionPiece(code);
   if (def.mode !== "generee") throw invalide("Ce document se dépose ; il ne se signe pas en ligne.");
-  if (!peutValider(code, acteur.role) || acteur.role === "admin") throw interdit("Ce document n'attend pas votre signature.");
+  if (!peutValider(code, acteur.role) || acteur.role === "admin" || (acteur.role === "formateur" && code !== "04-AVT")) throw interdit("Ce document n'attend pas votre signature.");
   if (piece.statut === "valide") throw new ErreurMetier("conflit", "Ce document est déjà validé.");
   const erreurs = validerDemandeSignature(demande);
   if (erreurs.length > 0) throw invalide(erreurs[0]!, { erreurs });

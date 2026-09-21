@@ -251,7 +251,8 @@ export const NOMENCLATURE: readonly PieceDef[] = [
     espace: "apprenant",
     ordre: "5",
     suiviStatut: true,
-    valideePar: ["apprenant"],
+    // Le formateur cosigne cette pièce : il peut aussi déposer la feuille papier signée en salle.
+    valideePar: ["apprenant", "formateur"],
     disponibleDes: "formation_debutee",
     requisePourCompletude: true,
     pieceDeDepart: false,

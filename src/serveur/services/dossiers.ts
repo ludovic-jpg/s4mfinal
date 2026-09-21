@@ -9,7 +9,7 @@ import { LIBELLE_STATUT, piecesManquantesPourCompletude, peutValider, peutVoir }
 import { ETAPES, SOUS_STATUTS, estTerminal, etapeDe, libelleSousStatut, type SousStatut } from "@/domaine/pipeline/statuts";
 import { actionsPossibles } from "@/domaine/pipeline/transitions";
 import { NOMENCLATURE, definitionPiece, type CodePiece } from "@/domaine/referentiel/pieces";
-import { dossierFormation, evenement, formateur, modeleOutil, pieceDossier, seance, stagiaire, stagiaireDossier } from "../bd/schema";
+import { dossierFormation, evaluation, evenement, formateur, modeleOutil, pieceDossier, seance, stagiaire, stagiaireDossier } from "../bd/schema";
 import { nouvelId } from "../ports/divers";
 import { accederAuDossier, chargerAgregat, chargerContextePipeline, seancesDuDossier, stagiairesDuDossier, type LigneDossier } from "./agregat";
 import { courriels } from "./courriels";
@@ -189,6 +189,14 @@ export async function supprimerBrouillon(s: Services, acteur: Acteur, id: string
 
 // ——— Lecture ———
 
+const QUESTIONNAIRES = [
+  { type: "recueil", code: "00-AVT" },
+  { type: "positionnement", code: "01-AVT" },
+  { type: "acquis", code: "07-FIN" },
+  { type: "satisfaction_chaud", code: "08-FIN" },
+  { type: "satisfaction_froid", code: "12-APR" },
+] as const;
+
 function vuePiece(p: typeof pieceDossier.$inferSelect, acteur: Acteur, ouvert: boolean) {
   const def = definitionPiece(p.code as CodePiece);
   const peutRetourner = ouvert && p.statut !== "valide" && peutValider(def.code, acteur.role);
@@ -211,7 +219,9 @@ function vuePiece(p: typeof pieceDossier.$inferSelect, acteur: Acteur, ouvert: b
     genere_le: p.genere_le,
     transmise_le: p.transmise_le,
     // Ce que CET acteur peut faire maintenant — l'interface n'a rien à deviner.
-    peut_signer: peutRetourner && def.mode === "generee" && acteur.role !== "admin" && !["00-AVT", "01-AVT", "08-FIN", "12-APR"].includes(def.code),
+    // Signature en ligne : l'apprenant signe ses pièces ; le formateur ne signe que SON ordre de mission
+    // (il peut en revanche DÉPOSER la feuille d'émargement papier signée en salle).
+    peut_signer: peutRetourner && def.mode === "generee" && (acteur.role === "apprenant" ? !["00-AVT", "01-AVT", "08-FIN", "12-APR"].includes(def.code) : acteur.role === "formateur" && def.code === "04-AVT"),
     peut_deposer: peutRetourner,
   };
 }
@@ -253,6 +263,19 @@ export async function lireDossier(s: Services, acteur: Acteur, id: string) {
     seances: agregat.seances,
     pieces,
     questionnaires: { positionnement: d.questionnaire_positionnement !== null, acquis: d.questionnaire_acquis !== null },
+    // État des questionnaires en ligne, par stagiaire : ouvert ? renseigné ? validé ? (l'apprenant ne voit que les siens)
+    questionnaires_etat: liens
+      .filter((l) => interne || l.st.id === acteur.stagiaire_id)
+      .flatMap((l) =>
+        QUESTIONNAIRES.map((q) => {
+          const p = toutesLesPieces.find((x) => x.code === q.code && x.stagiaire_id === l.st.id);
+          return { stagiaire_id: l.st.id, type: q.type, ouvert: p !== undefined && !estTerminal(statut), valide: p?.statut === "valide", retour_le: p?.retour_le ?? null };
+        }),
+      ),
+    // Questionnaires déjà renseignés (l'apprenant ne voit que les siens).
+    evaluations: (await s.bd.select({ stagiaire_id: evaluation.stagiaire_id, type: evaluation.type, date: evaluation.date, score: evaluation.score }).from(evaluation).where(eq(evaluation.dossier_id, d.id))).filter(
+      (e) => interne || e.stagiaire_id === acteur.stagiaire_id,
+    ),
     // Réservé au formateur et à l'admin : finances, actions de pipeline, journal.
     finances: interne ? calculer(agregat) : null,
     actions: interne ? actionsPossibles(contexte, acteur.role) : [],

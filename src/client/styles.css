@@ -1,0 +1,117 @@
+/* Hallmark · application métier (pas de macrostructure de page) · genre: modern-minimal · thème: custom « dossier »
+ * vibe: papier ivoire, encre vert sapin, surligneur jaune — la charte Skills4mation, posée comme un dossier bien tenu
+ * paper oklch(98.4% 0.006 105) · accent oklch(46% 0.105 158) vert · signal oklch(84% 0.155 92) jaune
+ * display: Poppins · corps: Inter Variable  ·  axes: light / geometric-sans / chromatic-green
+ * pre-emit critique: P4 H5 E4 S5 R5 V4
+ */
+@import "tailwindcss";
+@import "@fontsource-variable/inter";
+@import "@fontsource/poppins/latin-500.css";
+@import "@fontsource/poppins/latin-600.css";
+@import "@fontsource/poppins/latin-ext-600.css";
+
+@theme {
+  --font-sans: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Poppins", "Inter Variable", ui-sans-serif, sans-serif;
+
+  /* Papier et encre */
+  --color-papier: oklch(98.4% 0.006 105);
+  --color-papier-2: oklch(96.3% 0.009 110);
+  --color-papier-3: oklch(93.2% 0.012 120);
+  --color-carte: oklch(100% 0 0);
+  --color-trait: oklch(89.5% 0.012 140);
+  --color-trait-fort: oklch(80% 0.018 145);
+  --color-encre: oklch(24% 0.028 158);
+  --color-encre-2: oklch(43% 0.022 158);
+  --color-encre-3: oklch(58% 0.016 158);
+
+  /* Accent : le vert de la marque. Une seule couleur d'action. */
+  --color-accent: oklch(46% 0.105 158);
+  --color-accent-fort: oklch(39% 0.095 158);
+  --color-accent-doux: oklch(95% 0.035 158);
+  --color-sur-accent: oklch(99% 0.005 105);
+
+  /* Statuts des pièces : binaire, comme le cahier des charges. */
+  --color-attente: oklch(84% 0.155 92);
+  --color-attente-doux: oklch(96.5% 0.05 95);
+  --color-attente-encre: oklch(40% 0.085 80);
+  --color-valide: oklch(52% 0.12 158);
+  --color-valide-doux: oklch(95% 0.04 158);
+
+  --color-danger: oklch(52% 0.19 27);
+  --color-danger-doux: oklch(96% 0.025 27);
+  --color-focus: oklch(55% 0.19 255);
+
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --shadow-carte: 0 1px 0 oklch(24% 0.028 158 / 0.04), 0 1px 3px oklch(24% 0.028 158 / 0.06);
+  --shadow-flottant: 0 12px 40px -8px oklch(24% 0.028 158 / 0.22), 0 2px 6px oklch(24% 0.028 158 / 0.08);
+}
+
+html,
+body {
+  overflow-x: clip;
+}
+body {
+  background: var(--color-papier);
+  color: var(--color-encre);
+  font-family: var(--font-sans);
+  font-size: 15px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  font-feature-settings: "cv11", "ss01";
+}
+h1,
+h2,
+h3 {
+  font-family: var(--font-display);
+  font-style: normal;
+  letter-spacing: -0.012em;
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+.chiffres {
+  font-variant-numeric: tabular-nums;
+}
+
+/* L'anneau de focus apparaît instantanément, jamais animé. */
+:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+  border-radius: var(--radius-xs);
+}
+
+dialog::backdrop {
+  background: oklch(24% 0.028 158 / 0.45);
+}
+dialog[open] {
+  animation: apparaitre 180ms var(--ease-out);
+}
+@keyframes apparaitre {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+@keyframes tourner {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.tourne {
+  animation: tourner 700ms linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    transition-duration: 1ms !important;
+  }
+}
