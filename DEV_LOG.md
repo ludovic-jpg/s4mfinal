@@ -197,3 +197,15 @@ serveur) ; boutons du kit débordant de leur carte ; tracé de signature sous la
 4. Un seul fichier de migration : à partir de maintenant, toute évolution du schéma passe par `npm run db:generate` et un **nouveau** fichier, jamais par la modification de `0000_initial.sql`.
 5. « Modification 1 » : relances automatiques et purge des positionnements, tableau de bord OF des échéances,
    images et PDF des supports, sauvegarde complète en un clic — voir `docs/SUITE_ET_TODO.md`.
+
+---
+
+## Version 7 — 23/09/2026 ✅
+
+**Demande.** Document « modif.docx » + questionnaire : IA réglée dans l'appli et recherche web par formation, plus de trame, plus de saisie formateur, plus de coût horaire, public/prérequis pré-remplis, e-mails fonctionnels (SMTP Gmail), formulaires apprenant en page interactive signée (5 types, auto + bouton).
+
+**Réalisé.** Voir `docs/VERSION_7_23-09.md`. Migration `0003_version_7`. Tests : 310 vitest (+41), 14 Playwright (+3). Relecture code + UX par un second agent.
+
+**Défauts trouvés par les tests et corrigés.** Route `/api/ia/etat` sans `await` ; assistant factice répondant le mauvais schéma ; échappement HTML de l'e-mail de test ; message de déchiffrement.
+
+**Non fait / à faire.** Premier appel IA réel (clé + workspace) ; révocation de la clé exposée ; images dans les PPTX ; découpage du bundle.

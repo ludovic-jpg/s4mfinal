@@ -1,4 +1,11 @@
-# Après « Modification 1 » : manquements, points en suspens, to-do
+# Après la version 7 : manquements, points en suspens, to-do
+
+> Mise à jour du 23/09/2026 (version 7). Traité depuis la « Modification 1 » : L-01 en partie (adaptateur testé sans réseau, assistant
+> factice, premier appel réel à faire ensemble), **L-02 et L-03 réglés** (plus de trame : dossier d'enjeux + questions de connaissances),
+> L-05 en partie (lien de 45 jours renouvelé à chaque renvoi ; pas encore de limitation de débit), L-06 réglé (relance J+7, à froid J+90),
+> H-34 réglé (Sonnet 5, recherche web activée, réglable dans l'appli). Nouveaux points : révoquer la clé d'API qui a circulé dans un Word ;
+> confirmer les ordres de grandeur de coût après les premiers appels réels ; limitation de débit des routes publiques `/api/public/*`.
+
 
 Ce que cette version **ne fait pas encore**, ce qui **attend ta décision**, et ce qui reste **à faire**, par ordre de
 priorité. Pour chaque ligne de la to-do : ce que je peux entreprendre moi-même dans une prochaine session, et ce qui
