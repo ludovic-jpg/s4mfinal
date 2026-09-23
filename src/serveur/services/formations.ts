@@ -159,7 +159,7 @@ export async function creerFormation(s: Services, acteur: Acteur, donnees: unkno
 
 const VERSIONS_CONSERVEES = 50;
 
-async function memoriserVersion(s: Services, acteur: Acteur, type: "formation" | "outil", objet_id: string, snapshot: unknown, libelle: string): Promise<void> {
+export async function memoriserVersion(s: Services, acteur: Acteur, type: "formation" | "outil", objet_id: string, snapshot: unknown, libelle: string): Promise<void> {
   await s.bd.insert(versionObjet).values({ id: nouvelId(), of_id: acteur.of_id, type, objet_id, libelle, snapshot, auteur_id: acteur.utilisateur_id, cree_le: s.horloge.maintenant() });
   const anciennes = await s.bd.select({ id: versionObjet.id }).from(versionObjet).where(and(eq(versionObjet.type, type), eq(versionObjet.objet_id, objet_id))).orderBy(desc(versionObjet.cree_le));
   const aPurger = anciennes.slice(VERSIONS_CONSERVEES).map((v) => v.id);
@@ -174,7 +174,8 @@ export async function modifierFormation(s: Services, acteur: Acteur, id: string,
   controlerCoherence(fusion);
   const complete = "formation_modules" in valeurs ? completerDepuisModules({ ...valeurs, programme: valeurs.programme ?? avant.programme, formation_objectifs: valeurs.formation_objectifs ?? avant.formation_objectifs }) : valeurs;
   await memoriserVersion(s, acteur, "formation", id, avant, `Avant la modification du ${s.horloge.maintenant().toISOString()}`);
-  await s.bd.update(formation).set({ ...complete, ...("dossier_enjeux" in valeurs && valeurs.dossier_enjeux ? { enjeux_le: s.horloge.maintenant() } : {}), maj_le: s.horloge.maintenant() }).where(eq(formation.id, id));
+  const enjeuxChanges = "dossier_enjeux" in valeurs && valeurs.dossier_enjeux && JSON.stringify(valeurs.dossier_enjeux) !== JSON.stringify(avant.dossier_enjeux);
+  await s.bd.update(formation).set({ ...complete, ...(enjeuxChanges ? { enjeux_le: s.horloge.maintenant() } : {}), maj_le: s.horloge.maintenant() }).where(eq(formation.id, id));
   return lireFormation(s, acteur, id);
 }
 

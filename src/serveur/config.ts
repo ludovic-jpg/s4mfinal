@@ -23,6 +23,8 @@ const Schema = z.object({
   IA_WORKSPACE_ID: z.string().default(""),
   /** Clé de chiffrement des secrets enregistrés en base (32 octets en hexadécimal) ; vide = fichier `.cle-secrets` créé à côté de la base. */
   CLE_SECRETS: z.string().default(""),
+  /** « oui » : assistant IA FACTICE (réponses fictives marquées [démonstration]), pour essayer et tester sans clé. Jamais en production. */
+  IA_FACTICE: z.enum(["oui", "non"]).default("non"),
   /** « oui » : l'IA peut mener une recherche web avant de rédiger parcours et supports (coût supplémentaire). */
   IA_RECHERCHE_WEB: z.enum(["oui", "non"]).default("oui"),
   /**

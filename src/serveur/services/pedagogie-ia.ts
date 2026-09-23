@@ -35,7 +35,7 @@ import {
 import { programmeDepuisModules, repartirHeures, validerDiapos, type Diapo, type ModuleParcours } from "@/domaine/pedagogie/parcours";
 import { coffreFichier, formation as tableFormation } from "../bd/schema";
 import { creerAssistant, iaIndisponible, type AssistantPedagogique, type OptionsRedaction } from "../ports/ia";
-import { ecrireDansCoffre, lireFormation } from "./formations";
+import { ecrireDansCoffre, lireFormation, memoriserVersion } from "./formations";
 import { lireOrganisme } from "./organisme";
 import { configIa } from "./reglages";
 import { nomSupport, rendrePptx } from "./supports";
@@ -141,6 +141,8 @@ export async function analyserEnjeux(s: Services, acteur: Acteur, donnees: unkno
   const v = z.object({ formation_id: z.string().min(1) }).parse(donnees);
   const f = await lireFormation(s, acteur, v.formation_id);
   const enjeux = await rechercherEnjeux(s, acteur, { titre: f.formation_titre, niveau: f.formation_niveau, public_vise: f.public_vise, modalite: f.formation_modalite, heures: f.formation_duree_heures_total });
+  // L'état précédent (dossier d'enjeux compris) reste dans l'historique des versions, comme pour toute modification.
+  await memoriserVersion(s, acteur, "formation", f.id, f, `Avant l'analyse des enjeux du ${s.horloge.maintenant().toISOString()}`);
   await s.bd
     .update(tableFormation)
     .set({ dossier_enjeux: enjeux, enjeux_le: s.horloge.maintenant(), public_vise: f.public_vise || enjeux.public_vise, formation_prerequis: f.formation_prerequis || enjeux.prerequis, maj_le: s.horloge.maintenant() })

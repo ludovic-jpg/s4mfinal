@@ -15,7 +15,7 @@ import { chiffreurDepuisEnvironnement } from "./ports/chiffrement";
 import { configSmtp } from "./services/reglages";
 import { horlogeSysteme } from "./ports/divers";
 import { ConvertisseurChromium } from "./ports/pdf";
-import { creerAssistant } from "./ports/ia";
+import { creerAssistant, IaFactice } from "./ports/ia";
 import { envoyerFormulairesProgrammes } from "./services/taches";
 import type { Services } from "./services/socle";
 
@@ -52,7 +52,7 @@ const s: Services = {
   horloge: horlogeSysteme,
   appUrl,
   secrets,
-  ia: creerAssistant({ cle: config.ANTHROPIC_API_KEY, modele: config.IA_MODELE, workspace: config.IA_WORKSPACE_ID, rechercheWeb: config.IA_RECHERCHE_WEB === "oui" }),
+  ia: config.IA_FACTICE === "oui" && config.NODE_ENV !== "production" ? new IaFactice() : creerAssistant({ cle: config.ANTHROPIC_API_KEY, modele: config.IA_MODELE, workspace: config.IA_WORKSPACE_ID, rechercheWeb: config.IA_RECHERCHE_WEB === "oui" }),
 };
 
 // Première ouverture : la base est vide. Soit un jeu de démonstration (données fictives), soit un organisme

@@ -192,3 +192,63 @@ export function creerAssistant(config: Partial<ConfigIa> | undefined, appel: typ
   if (!config?.cle) return iaIndisponible;
   return new IaAnthropic({ cle: config.cle, modele: config.modele || MODELE_IA_DEFAUT, workspace: config.workspace, rechercheWeb: config.rechercheWeb }, appel);
 }
+
+// ——— Assistant factice (démonstration, tests de bout en bout) ———
+
+/**
+ * Assistant « factice » : sans réseau ni clé, il produit des réponses VALIDES mais visiblement fictives, marquées
+ * « [démonstration] ». Activé par `IA_FACTICE=oui` : sert à essayer l'application et à la tester de bout en bout
+ * sans dépenser de crédits. Jamais en production.
+ */
+export class IaFactice implements AssistantPedagogique {
+  readonly disponible = true;
+  readonly description = "assistant factice (démonstration, sans réseau)";
+
+  async rediger(_consigne: string, demande: string): Promise<ReponseIa> {
+    const titre = /Intitulé : (.+)/.exec(demande)?.[1]?.trim() ?? "la formation";
+    const usage: UsageIa = { tokens_entree: 0, tokens_sortie: 0, recherches_web: 0, modele: "factice", duree_ms: 0, tentatives: 1 };
+    const json = (o: unknown) => ({ texte: JSON.stringify(o), usage, sources: [] });
+    if (/dossier d'enjeux/i.test(demande)) {
+      return json({
+        resume: `[démonstration] Dossier d'enjeux fictif pour « ${titre} » : ce texte remplace la recherche web de l'assistant réel. Il sert à essayer l'application sans clé d'API.`,
+        enjeux: ["[démonstration] Enjeu n° 1 pour l'entreprise", "[démonstration] Enjeu n° 2 pour le stagiaire", "[démonstration] Enjeu n° 3 réglementaire"],
+        cadre: ["[démonstration] Texte de référence applicable", "[démonstration] Norme ou référentiel"],
+        notions_cles: ["[démonstration] Notion clé A", "[démonstration] Notion clé B", "[démonstration] Notion clé C", "[démonstration] Notion clé D"],
+        erreurs_frequentes: ["[démonstration] Erreur fréquente n° 1", "[démonstration] Erreur fréquente n° 2"],
+        pratiques_actuelles: ["[démonstration] Pratique actuelle n° 1"],
+        public_vise: `[démonstration] Salariés et indépendants concernés par « ${titre} ».`,
+        prerequis: "[démonstration] Aucun prérequis particulier.",
+        glossaire: [{ terme: "[démonstration] Terme", definition: "Définition fictive." }],
+        sources: [{ titre: "[démonstration] Source fictive", url: "https://example.org/demonstration" }],
+      });
+    }
+    if (/Conçois le parcours/i.test(demande)) {
+      const n = Number(/exactement (\d+) module/i.exec(demande)?.[1] ?? 3);
+      return json({
+        objectifs: ["[démonstration] Identifier les enjeux du sujet", "[démonstration] Appliquer la méthode de référence", "[démonstration] Évaluer ses résultats"],
+        public_vise: `[démonstration] Public visé fictif pour « ${titre} ».`,
+        prerequis: "[démonstration] Aucun prérequis.",
+        modules: Array.from({ length: n }, (_, i) => ({
+          titre: `[démonstration] Module ${i + 1} — ${titre}`,
+          objectifs: [`[démonstration] Objectif ${i + 1}.1`, `[démonstration] Objectif ${i + 1}.2`],
+          contenus: ["[démonstration] Contenu A", "[démonstration] Contenu B", "[démonstration] Contenu C"],
+          methodes: "[démonstration] Apports courts, atelier, échanges.",
+          mise_en_pratique: "[démonstration] Atelier de 45 minutes sur un cas concret.",
+          evaluation: "[démonstration] Quiz de fin de module.",
+        })),
+      });
+    }
+    if (/choix multiples/i.test(demande)) {
+      const n = Number(/Exactement (\d+) questions/i.exec(demande)?.[1] ?? 10);
+      return json({
+        titre: `[démonstration] ${/TEST DE POSITIONNEMENT/.test(demande) ? "Test de positionnement" : "Évaluation des acquis"} — ${titre}`,
+        questions: Array.from({ length: n }, (_, i) => ({ enonce: `[démonstration] Question ${i + 1} sur « ${titre} » ?`, propositions: ["Proposition A", "Proposition B", "Proposition C", "Proposition D"], bonne_reponse: i % 4 })),
+      });
+    }
+    if (/diaporama/i.test(demande)) {
+      const types = ["titre", "objectifs", "sommaire", "amorce", "notion", "notion", "schema", "exemple", "point_etape", "notion", "notion", "exemple", "schema", "pratique", "pratique", "debriefing", "vigilance", "notion", "synthese", "quiz"];
+      return json({ diapos: types.map((type, i) => ({ type, titre: `[démonstration] Diapositive ${i + 1} (${type})`, points: ["Point 1", "Point 2", "Point 3"], visuel: "Schéma fictif", notes: "Notes fictives du formateur." })) });
+    }
+    return json({ objectifs: ["[démonstration] Objectif 1", "[démonstration] Objectif 2", "[démonstration] Objectif 3"], programme: `[démonstration] Programme fictif de « ${titre} » — séquence 1, séquence 2, séquence 3.` });
+  }
+}

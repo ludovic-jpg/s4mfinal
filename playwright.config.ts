@@ -18,6 +18,6 @@ export default defineConfig({
     url: `http://localhost:${PORT}/api/referentiel`,
     timeout: 240_000,
     reuseExistingServer: false,
-    env: { PORT: String(PORT), DATABASE_URL: "./donnees-e2e/base", ARCHIVE_DIR: "./donnees-e2e/archive", APP_URL: `http://localhost:${PORT}`, NODE_ENV: "test" },
+    env: { PORT: String(PORT), DATABASE_URL: "./donnees-e2e/base", ARCHIVE_DIR: "./donnees-e2e/archive", APP_URL: `http://localhost:${PORT}`, NODE_ENV: "test", IA_FACTICE: "oui" },
   },
 });
