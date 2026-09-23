@@ -12,6 +12,7 @@ import { and, desc, eq, inArray, isNotNull, isNull } from "drizzle-orm";
 import { z } from "zod";
 import { validerQuestionnaire, type Questionnaire } from "@/domaine/formulaires/qcm";
 import { CODES_CATEGORIES } from "@/domaine/pedagogie/listes";
+import { validerEnjeux } from "@/domaine/pedagogie/enjeux";
 import { objectifsDepuisModules, programmeDepuisModules, validerModules, type ModuleParcours } from "@/domaine/pedagogie/parcours";
 import { aAtteint, type SousStatut } from "@/domaine/pipeline/statuts";
 import { coffreFichier, dossierFormation, formation, modeleOutil, stagiaireDossier, versionObjet } from "../bd/schema";
@@ -59,13 +60,26 @@ export const SchemaFormation = z.object({
   formation_lien_visio: z.union([z.literal(""), z.string().trim().url("Lien de connexion invalide.").max(500)]).default(""),
   mode_financement: z.enum(["opco", "faf", "entreprise", "fonds_propres"]).default("opco"),
   formation_opco: z.string().trim().max(200).default(""),
-  formateur_cout_horaire: centimes,
   formation_domaine: z.string().trim().max(200).default(""),
   formation_moyens_pedagogiques: z.string().trim().max(4000).default(""),
   formation_modalites_evaluation: z.string().trim().max(4000).default(""),
   formation_modalites_sanction: z.string().trim().max(500).default(""),
   formation_accessibilite: z.string().trim().max(2000).default(""),
   formation_delai_acces: z.string().trim().max(200).default(""),
+  /** Dossier d'enjeux proposé par l'IA à la génération du parcours (version 7) ; validé strictement, jamais « réparé ». */
+  dossier_enjeux: z
+    .unknown()
+    .nullable()
+    .default(null)
+    .transform((x, ctx) => {
+      if (x === null || x === undefined) return null;
+      const r = validerEnjeux(x);
+      if (!r.ok) {
+        ctx.addIssue({ code: "custom", message: `Dossier d'enjeux invalide : ${r.erreurs[0]}` });
+        return z.NEVER;
+      }
+      return r.valeur;
+    }),
 });
 
 type LigneFormation = typeof formation.$inferSelect;
@@ -136,7 +150,7 @@ export async function creerFormation(s: Services, acteur: Acteur, donnees: unkno
   controlerCoherence(valeurs);
   const id = nouvelId();
   const maintenant = s.horloge.maintenant();
-  await s.bd.insert(formation).values({ id, of_id: acteur.of_id, formateur_id, ...valeurs, cree_le: maintenant, maj_le: maintenant });
+  await s.bd.insert(formation).values({ id, of_id: acteur.of_id, formateur_id, ...valeurs, enjeux_le: valeurs.dossier_enjeux ? maintenant : null, cree_le: maintenant, maj_le: maintenant });
   await journaliser(s, { of_id: acteur.of_id, acteur, type: "formation_creee", libelle: `Formation « ${valeurs.formation_titre} » créée` });
   return lireFormation(s, acteur, id);
 }
@@ -160,7 +174,7 @@ export async function modifierFormation(s: Services, acteur: Acteur, id: string,
   controlerCoherence(fusion);
   const complete = "formation_modules" in valeurs ? completerDepuisModules({ ...valeurs, programme: valeurs.programme ?? avant.programme, formation_objectifs: valeurs.formation_objectifs ?? avant.formation_objectifs }) : valeurs;
   await memoriserVersion(s, acteur, "formation", id, avant, `Avant la modification du ${s.horloge.maintenant().toISOString()}`);
-  await s.bd.update(formation).set({ ...complete, maj_le: s.horloge.maintenant() }).where(eq(formation.id, id));
+  await s.bd.update(formation).set({ ...complete, ...("dossier_enjeux" in valeurs && valeurs.dossier_enjeux ? { enjeux_le: s.horloge.maintenant() } : {}), maj_le: s.horloge.maintenant() }).where(eq(formation.id, id));
   return lireFormation(s, acteur, id);
 }
 

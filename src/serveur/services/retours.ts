@@ -52,7 +52,7 @@ export async function marquerValidee(s: Services, d: LigneDossier, piece: LigneP
   const empreinte_retour = sha256(await s.archive.lire(retour.chemin));
   await s.bd
     .update(pieceDossier)
-    .set({ statut: "valide", chemin_retour: retour.chemin, nom_fichier_retour: retour.nom_fichier, empreinte_retour, mode_retour: retour.mode, retour_le: s.horloge.maintenant(), retour_par: acteur.utilisateur_id })
+    .set({ statut: "valide", chemin_retour: retour.chemin, nom_fichier_retour: retour.nom_fichier, empreinte_retour, mode_retour: retour.mode, retour_le: s.horloge.maintenant(), retour_par: acteur.utilisateur_id || null })
     .where(eq(pieceDossier.id, piece.id));
   const def = definitionPiece(piece.code as CodePiece);
   await journaliser(s, {

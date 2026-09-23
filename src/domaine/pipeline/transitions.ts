@@ -42,7 +42,8 @@ export type Effet =
   | "GENERER_PIECES_DE_REALISATION" // émargement, évaluation des acquis
   | "GENERER_PIECES_DE_FIN" // attestation, satisfaction à chaud, trame de facture formateur
   | "GENERER_FACTURE_OF"
-  | "PLANIFIER_SATISFACTION_A_FROID";
+  | "PLANIFIER_SATISFACTION_A_FROID"
+  | "ENVOYER_FORMULAIRES_DE_FIN"; // version 7 : évaluation des acquis + satisfaction à chaud, page interactive signée
 
 export interface ContexteDossier {
   sous_statut: SousStatut;
@@ -147,7 +148,7 @@ export const REGLES: Record<Action, Regle> = {
     vers: completude,
     acteurs: ["formateur", "admin"],
     libelle: "Déclarer la formation terminée",
-    effets: ["GENERER_PIECES_DE_FIN", "PLANIFIER_SATISFACTION_A_FROID"],
+    effets: ["GENERER_PIECES_DE_FIN", "ENVOYER_FORMULAIRES_DE_FIN", "PLANIFIER_SATISFACTION_A_FROID"],
   },
   reevaluer_completude: {
     de: ["fin_dossier_incomplet", "fin_dossier_complet"],

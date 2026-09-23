@@ -6,6 +6,7 @@ import type { Courrier } from "../ports/courrier";
 import type { ConvertisseurPdf } from "../ports/pdf";
 import type { Horloge } from "../ports/divers";
 import type { AssistantPedagogique } from "../ports/ia";
+import type { Chiffreur } from "../ports/chiffrement";
 import type { Role } from "@/domaine/referentiel/pieces";
 import { evenement } from "../bd/schema";
 import { nouvelId } from "../ports/divers";
@@ -17,8 +18,10 @@ export interface Services {
   pdf: ConvertisseurPdf;
   horloge: Horloge;
   appUrl: string;
-  /** Assistant IA de l'espace pédagogique — facultatif ; absent = indisponible (voir ports/ia.ts). */
+  /** Assistant IA par défaut du serveur (`.env`) — facultatif ; les réglages en base de l'organisme priment (voir ports/ia.ts). */
   ia?: AssistantPedagogique;
+  /** Chiffrement des secrets enregistrés en base (clé d'API, mot de passe SMTP). */
+  secrets: Chiffreur;
 }
 
 /** Qui agit. Construit par le serveur à partir de la session — jamais à partir du corps d'une requête. */
@@ -72,7 +75,7 @@ export async function journaliser(
     id: nouvelId(),
     of_id: entree.of_id,
     dossier_id: entree.dossier_id ?? null,
-    acteur_id: entree.acteur === "systeme" ? null : entree.acteur.utilisateur_id,
+    acteur_id: entree.acteur === "systeme" ? null : entree.acteur.utilisateur_id || null,
     acteur_role: entree.acteur === "systeme" ? "systeme" : entree.acteur.role,
     type: entree.type,
     libelle: entree.libelle,

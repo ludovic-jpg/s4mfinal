@@ -13,6 +13,7 @@ import { accederAuDossier, chargerContextePipeline, seancesDuDossier, stagiaires
 import { courriels } from "./courriels";
 import { genererPiece, genererPieces, synchroniserPieces } from "./generation";
 import { inviterApprenant } from "./invitations";
+import { envoyerFormulairesAutomatiques } from "./formulaires-apprenant";
 import { champsOfManquants, lireOrganisme } from "./organisme";
 import { ErreurMetier, invalide, journaliser, type Acteur, type Services } from "./socle";
 
@@ -226,6 +227,11 @@ async function executerEffet(s: Services, d: LigneDossier, effet: Effet, options
       await s.bd.update(pieceDossier).set({ transmise_le: s.horloge.maintenant() }).where(eq(pieceDossier.id, facture.id));
       return;
     }
+
+    case "ENVOYER_FORMULAIRES_DE_FIN":
+      // Version 7 : chaque stagiaire reçoit son lien personnel (+ PDF avec QR code) pour répondre et signer en ligne.
+      await envoyerFormulairesAutomatiques(s, d, ["acquis", "satisfaction_chaud"]);
+      return;
 
     case "PLANIFIER_SATISFACTION_A_FROID":
       // Rien à écrire : la tâche quotidienne retrouve les dossiers terminés depuis 90 jours (voir taches.ts).

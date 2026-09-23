@@ -270,11 +270,12 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   const { CourrierJournalise } = await import("../ports/courrier");
   const { horlogeSysteme } = await import("../ports/divers");
   const { sansPdf } = await import("../ports/pdf");
+  const { chiffreurEphemere } = await import("../ports/chiffrement");
   const { organismeExiste } = await import("./amorce");
   const config = lireConfig();
   const { bd, fermer } = await ouvrirBase(config.DATABASE_URL);
   const archive = new ArchiveLocale(config.ARCHIVE_DIR);
-  const s: Services = { bd, archive, courrier: new CourrierJournalise(bd, archive), pdf: sansPdf, horloge: horlogeSysteme, appUrl: config.APP_URL };
+  const s: Services = { bd, archive, courrier: new CourrierJournalise(bd, archive), pdf: sansPdf, horloge: horlogeSysteme, appUrl: config.APP_URL, secrets: chiffreurEphemere() };
   if (await organismeExiste(s)) console.log("La base contient déjà des données : semence ignorée. Supprimez le dossier « donnees » pour repartir de zéro.");
   else {
     await semer(s);

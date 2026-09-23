@@ -15,6 +15,10 @@ import type { Acteur } from "@/serveur/services/socle";
 import type { listerCoffresParcours, lireCoffreParcours } from "@/serveur/services/coffre";
 import type { listerPositionnements, lirePositionnementPublic } from "@/serveur/services/positionnements";
 import type { archivesEtCorbeille } from "@/serveur/services/sauvegarde";
+import type { vueReglages, envoyerCourrielDeTest } from "@/serveur/services/reglages";
+import type { etatFormulaires, lireFormulairePublic, envoyerFormulaire, listerFormulaires } from "@/serveur/services/formulaires-apprenant";
+import type { proposerParcours, analyserEnjeux, etatIa } from "@/serveur/services/pedagogie-ia";
+import type { DossierEnjeux } from "@/domaine/pedagogie/enjeux";
 import type { courrier } from "@/serveur/bd/schema";
 
 /** Ce que devient un type une fois passé par JSON : les dates sont des chaînes. */
@@ -46,6 +50,17 @@ export type VueCoffre = Reponse<typeof lireCoffreParcours>;
 export type LignePositionnement = Reponse<typeof listerPositionnements>[number];
 export type PositionnementPublic = Reponse<typeof lirePositionnementPublic>;
 export type Archives = Reponse<typeof archivesEtCorbeille>;
+// ——— Version 7 ———
+export type Reglages = Reponse<typeof vueReglages>;
+export type ResultatTestCourriel = Reponse<typeof envoyerCourrielDeTest>;
+export type EtatFormulaire = Reponse<typeof etatFormulaires>[number];
+export type FormulairePublic = Reponse<typeof lireFormulairePublic>;
+export type ResultatEnvoiFormulaire = Reponse<typeof envoyerFormulaire>;
+export type LigneFormulaire = Reponse<typeof listerFormulaires>[number];
+export type PropositionParcours = Reponse<typeof proposerParcours>;
+export type ResultatEnjeux = Reponse<typeof analyserEnjeux>;
+export type EtatIa = Reponse<typeof etatIa>;
+export type { DossierEnjeux };
 export type Moi = { acteur: Json<Acteur> | null; organisme?: { nom: string; couleur: string } };
 
 export class ErreurApi extends Error {

@@ -27,6 +27,8 @@ import * as pedagogieIa from "../services/pedagogie-ia";
 import * as coffre from "../services/coffre";
 import * as positionnements from "../services/positionnements";
 import * as sauvegarde from "../services/sauvegarde";
+import * as reglages from "../services/reglages";
+import * as formulaires from "../services/formulaires-apprenant";
 import { executerAction } from "../services/pipeline";
 import { TAILLE_MAX_COFFRE, type FichierDepose } from "../services/fichiers";
 import { ErreurMetier, exigerRole, invalide, type Acteur, type CodeErreur, type Services } from "../services/socle";
@@ -132,6 +134,12 @@ export function creerApp(s: Services, options: { production?: boolean } = {}) {
   app.post("/api/public/positionnement/:jeton/signer", async (c) => c.json(await positionnements.signerPositionnementPublic(s, c.req.param("jeton"), await corps(c), ip(c))));
   app.get("/api/public/positionnement/:jeton/pdf", async (c) => telechargement(c, await positionnements.telechargerPdfPublic(s, c.req.param("jeton"))));
 
+  // ——— Page publique d'un formulaire apprenant (version 7) : recueil, positionnement, acquis, satisfaction ———
+  app.get("/api/public/formulaire/:jeton", async (c) => c.json(await formulaires.lireFormulairePublic(s, c.req.param("jeton"))));
+  app.put("/api/public/formulaire/:jeton/brouillon", async (c) => c.json(await formulaires.enregistrerBrouillonPublic(s, c.req.param("jeton"), await corps(c))));
+  app.post("/api/public/formulaire/:jeton/signer", async (c) => c.json(await formulaires.signerFormulairePublic(s, c.req.param("jeton"), await corps(c), ip(c))));
+  app.get("/api/public/formulaire/:jeton/pdf", async (c) => telechargement(c, await formulaires.telechargerPdfPublic(s, c.req.param("jeton"))));
+
   app.use("/api/*", async (c, next) => (c.req.path.startsWith("/api/auth/") || c.req.path.startsWith("/api/public/") ? next() : connecte(c, next)));
   const A = (c: Context<Env>) => c.get("acteur");
 
@@ -182,6 +190,11 @@ export function creerApp(s: Services, options: { production?: boolean } = {}) {
     return c.json({ organisme: of, manques: organisme.champsOfManquants(of) });
   });
 
+  // Réglages modifiables dans l'application (version 7) : assistant IA, envoi des e-mails.
+  app.get("/api/admin/reglages", async (c) => c.json(await reglages.vueReglages(s, A(c))));
+  app.patch("/api/admin/reglages", async (c) => c.json(await reglages.enregistrerReglages(s, A(c), await corps(c))));
+  app.post("/api/admin/reglages/test-courriel", async (c) => c.json(await reglages.envoyerCourrielDeTest(s, A(c))));
+
   /** Boîte d'envoi : tout e-mail automatique y est consultable (traçabilité, §9 du cahier des charges). */
   app.get("/api/courriers", async (c) => {
     const acteur = A(c);
@@ -193,6 +206,19 @@ export function creerApp(s: Services, options: { production?: boolean } = {}) {
       lignes = lignes.filter((l) => (l.dossier_id && ids.has(l.dossier_id)) || l.formateur_id === acteur.formateur_id || l.destinataire === acteur.email);
     }
     return c.json(lignes);
+  });
+  /** Renvoi d'un e-mail de la boîte d'envoi (après correction des réglages SMTP, par exemple). */
+  app.post("/api/courriers/:id/renvoyer", async (c) => {
+    const acteur = A(c);
+    if (acteur.role === "apprenant") throw new ErreurMetier("interdit", "Réservé au formateur et à l'organisme.");
+    const [l] = await s.bd.select().from(courrier).where(eq(courrier.id, c.req.param("id")));
+    if (!l || l.of_id !== acteur.of_id) throw new ErreurMetier("introuvable", "Courrier introuvable.");
+    if (acteur.role === "formateur" && l.formateur_id !== acteur.formateur_id && l.destinataire !== acteur.email) {
+      const [d] = l.dossier_id ? await s.bd.select({ formateur_id: dossierFormation.formateur_id }).from(dossierFormation).where(eq(dossierFormation.id, l.dossier_id)) : [];
+      if (d?.formateur_id !== acteur.formateur_id) throw new ErreurMetier("introuvable", "Courrier introuvable.");
+    }
+    const r = await s.courrier.envoyer({ of_id: l.of_id, dossier_id: l.dossier_id, formateur_id: l.formateur_id, type: l.type, destinataire: l.destinataire, sujet: l.sujet, corps_html: l.corps_html, pieces_jointes: l.pieces_jointes as Array<{ nom: string; chemin: string }> });
+    return c.json(r);
   });
 
   // ——— Modules 2 et 3 : formations, outils, coffre-fort ———
@@ -237,8 +263,9 @@ export function creerApp(s: Services, options: { production?: boolean } = {}) {
   app.get("/api/ia/etat", (c) => c.json(pedagogieIa.etatIa(s, A(c))));
   app.post("/api/ia/qcm", async (c) => c.json(await pedagogieIa.proposerQcm(s, A(c), await corps(c))));
   app.post("/api/ia/programme", async (c) => c.json(await pedagogieIa.proposerProgramme(s, A(c), await corps(c))));
-  // « Modification 1 » : parcours, tests et supports — par l'IA (mode « ia ») ou par la trame (mode « trame »).
+  // « Modification 1 » puis version 7 : dossier d'enjeux (recherche web), parcours, tests et supports — toujours par l'IA.
   app.post("/api/ia/parcours", async (c) => c.json(await pedagogieIa.proposerParcours(s, A(c), await corps(c))));
+  app.post("/api/ia/enjeux", async (c) => c.json(await pedagogieIa.analyserEnjeux(s, A(c), await corps(c))));
   app.post("/api/ia/test", async (c) => c.json(await pedagogieIa.proposerTest(s, A(c), await corps(c))));
   app.post("/api/ia/plan-support", async (c) => c.json(await pedagogieIa.proposerPlanSupport(s, A(c), await corps(c))));
   app.post("/api/supports", async (c) => c.json(await pedagogieIa.produireSupport(s, A(c), await corps(c)), 201));
@@ -299,6 +326,16 @@ export function creerApp(s: Services, options: { production?: boolean } = {}) {
     await retours.deposerPieceExterne(s, A(c), c.req.param("id"), c.req.param("code"), fichier);
     return c.json(await dossiers.lireDossier(s, A(c), c.req.param("id")));
   });
+  // Formulaires apprenant (version 7) : état, envoi / renvoi, document d'invitation.
+  app.get("/api/dossiers/:id/formulaires", async (c) => c.json(await formulaires.etatFormulaires(s, A(c), c.req.param("id"))));
+  app.post("/api/dossiers/:id/formulaires/envoyer", async (c) => {
+    const d = await corps(c);
+    const type = String(d.type ?? "");
+    if (!["recueil", "positionnement", "acquis", "satisfaction_chaud", "satisfaction_froid"].includes(type)) throw invalide("Formulaire inconnu.");
+    return c.json(await formulaires.envoyerFormulaire(s, A(c), c.req.param("id"), String(d.stagiaire_id ?? ""), type as formulaires.TypeFormulaire, { message: typeof d.message === "string" ? d.message : undefined }));
+  });
+  app.get("/api/dossiers/:id/formulaires/:stagiaire/:type/invitation", async (c) => telechargement(c, await formulaires.telechargerInvitation(s, A(c), c.req.param("id"), c.req.param("stagiaire"), c.req.param("type") as formulaires.TypeFormulaire)));
+  app.get("/api/formulaires", async (c) => c.json(await formulaires.listerFormulaires(s, A(c), { dossier_id: c.req.query("dossier_id") || undefined })));
   app.get("/api/dossiers/:id/emargement", async (c) => c.json(await retours.etatEmargement(s, A(c), c.req.param("id"))));
   app.get("/api/dossiers/:id/trame-facture", async (c) => c.html(await retours.trameFactureFormateur(s, A(c), c.req.param("id"))));
   app.get("/api/dossiers/:id/questionnaires/:type", async (c) =>

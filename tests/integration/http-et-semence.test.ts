@@ -7,6 +7,7 @@ import { creerApp } from "@/serveur/http/app";
 import { ArchiveMemoire } from "@/serveur/ports/archive";
 import { CourrierJournalise } from "@/serveur/ports/courrier";
 import { horlogeSysteme } from "@/serveur/ports/divers";
+import { chiffreurEphemere } from "@/serveur/ports/chiffrement";
 import { sansPdf } from "@/serveur/ports/pdf";
 import { reinitialiserAntiForceBrute } from "@/serveur/services/auth";
 import { validerDemandeSignature } from "@/domaine/signature/preuve";
@@ -41,7 +42,7 @@ beforeAll(async () => {
   const base = await ouvrirBase("memoire");
   fermer = base.fermer;
   const archive = new ArchiveMemoire();
-  const s: Services = { bd: base.bd, archive, courrier: new CourrierJournalise(base.bd, archive), pdf: sansPdf, horloge: horlogeSysteme, appUrl: "http://localhost:5173" };
+  const s: Services = { bd: base.bd, archive, courrier: new CourrierJournalise(base.bd, archive), pdf: sansPdf, horloge: horlogeSysteme, appUrl: "http://localhost:5173", secrets: chiffreurEphemere() };
   await semer(s);
   reinitialiserAntiForceBrute();
   app = creerApp(s);

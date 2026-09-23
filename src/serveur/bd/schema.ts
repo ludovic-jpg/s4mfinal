@@ -199,6 +199,9 @@ export const formation = pgTable("formation", {
   formation_modalites_sanction: t("formation_modalites_sanction"),
   formation_accessibilite: t("formation_accessibilite"),
   formation_delai_acces: t("formation_delai_acces"),
+  // ——— Version 7 (23/09/2026) : dossier d'enjeux issu de la recherche web de l'IA, réutilisé par tous les générateurs ———
+  dossier_enjeux: jsonb("dossier_enjeux"),
+  enjeux_le: timestamp("enjeux_le", { withTimezone: true }),
   archivee: boolean("archivee").notNull().default(false),
   archivee_le: timestamp("archivee_le", { withTimezone: true }),
   cree_le: creeLe(),
@@ -501,4 +504,50 @@ export const positionnement = pgTable(
     cree_le: creeLe(),
   },
   (x) => [index("positionnement_formateur_idx").on(x.formateur_id)],
+);
+
+// ——— Version 7 (23/09/2026) ———
+
+/**
+ * Réglages de l'organisme modifiables depuis l'application (IA, e-mails SMTP) : une ligne par clé.
+ * Les valeurs secrètes (clé d'API, mot de passe SMTP) sont chiffrées avant écriture (ports/chiffrement.ts).
+ */
+export const reglage = pgTable(
+  "reglage",
+  {
+    id: id(),
+    of_id: text("of_id").notNull().references(() => organismeFormation.id),
+    cle: text("cle").notNull(),
+    valeur: t("valeur"),
+    secret: boolean("secret").notNull().default(false),
+    maj_le: timestamp("maj_le", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (x) => [uniqueIndex("reglage_of_cle_idx").on(x.of_id, x.cle)],
+);
+
+/**
+ * Formulaire envoyé à un apprenant d'un dossier (recueil, positionnement, acquis, satisfaction à chaud, à froid) :
+ * lien personnel + PDF d'invitation (QR code) → page interactive → réponses, date, signature → pièce validée.
+ * Une ligne par (dossier, stagiaire, type) ; un renvoi renouvelle le jeton.
+ */
+export const formulaireApprenant = pgTable(
+  "formulaire_apprenant",
+  {
+    id: id(),
+    of_id: text("of_id").notNull().references(() => organismeFormation.id),
+    dossier_id: text("dossier_id").notNull().references(() => dossierFormation.id, { onDelete: "cascade" }),
+    stagiaire_id: text("stagiaire_id").notNull().references(() => stagiaire.id),
+    type: text("type", { enum: ["recueil", "positionnement", "acquis", "satisfaction_chaud", "satisfaction_froid"] }).notNull(),
+    jeton_hash: text("jeton_hash").notNull().unique(),
+    statut: text("statut", { enum: ["envoye", "en_cours", "complet"] }).notNull().default("envoye"),
+    brouillon: jsonb("brouillon"),
+    envois: integer("envois").notNull().default(0),
+    envoye_le: timestamp("envoye_le", { withTimezone: true }),
+    expire_le: timestamp("expire_le", { withTimezone: true }).notNull(),
+    signe_le: timestamp("signe_le", { withTimezone: true }),
+    /** Document d'invitation (PDF avec QR code, ou HTML sans Chromium), archivé pour renvoi. */
+    chemin_invitation: text("chemin_invitation"),
+    cree_le: creeLe(),
+  },
+  (x) => [uniqueIndex("formulaire_apprenant_cle_idx").on(x.dossier_id, x.stagiaire_id, x.type)],
 );

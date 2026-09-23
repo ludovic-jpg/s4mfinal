@@ -10,6 +10,7 @@ import { ArchiveMemoire } from "@/serveur/ports/archive";
 import { CourrierJournalise } from "@/serveur/ports/courrier";
 import { HorlogeFixe } from "@/serveur/ports/divers";
 import { sansPdf } from "@/serveur/ports/pdf";
+import { chiffreurEphemere } from "@/serveur/ports/chiffrement";
 import { construireActeur, reinitialiserAntiForceBrute } from "@/serveur/services/auth";
 import type { Acteur, Services } from "@/serveur/services/socle";
 import type { AssistantPedagogique } from "@/serveur/ports/ia";
@@ -20,7 +21,7 @@ export async function creerBanc(options: { ia?: AssistantPedagogique } = {}) {
   const { bd, fermer } = await ouvrirBase("memoire");
   const archive = new ArchiveMemoire();
   const horloge = new HorlogeFixe(new Date("2026-10-01T08:00:00.000Z"));
-  const s: Services = { bd, archive, courrier: new CourrierJournalise(bd, archive), pdf: sansPdf, horloge, appUrl: "http://localhost:5173", ...(options.ia ? { ia: options.ia } : {}) };
+  const s: Services = { bd, archive, courrier: new CourrierJournalise(bd, archive), pdf: sansPdf, horloge, appUrl: "http://localhost:5173", secrets: chiffreurEphemere(), ...(options.ia ? { ia: options.ia } : {}) };
   reinitialiserAntiForceBrute();
 
   const of_id = await creerOrganisme(s, { id: "of-demo" });
@@ -57,11 +58,14 @@ export function iaFactice(reponses: string[]): AssistantPedagogique & { demandes
   const demandes: string[] = [];
   return {
     disponible: true,
+    description: "factice",
     demandes,
     rediger: (_systeme: string, demande: string) => {
       demandes.push(demande);
       const r = reponses.shift();
-      return r === undefined ? Promise.reject(new Error("Plus de réponse prévue.")) : Promise.resolve(r);
+      return r === undefined
+        ? Promise.reject(new Error("Plus de réponse prévue."))
+        : Promise.resolve({ texte: r, usage: { tokens_entree: 100, tokens_sortie: 200, recherches_web: 0, modele: "factice", duree_ms: 1, tentatives: 1 }, sources: [] });
     },
   };
 }

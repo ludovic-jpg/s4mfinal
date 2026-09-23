@@ -21,6 +21,7 @@ import { manquesAvantSoumission, numeroSuivant } from "./pipeline";
 import { lireEntreprise, lireStagiaire } from "./repertoire";
 import { lireFormation } from "./formations";
 import { reprendrePositionnements } from "./positionnements";
+import { envoyerFormulairesAutomatiques } from "./formulaires-apprenant";
 import { ErreurMetier, exigerFormateurValide, interdit, invalide, journaliser, type Acteur, type Services } from "./socle";
 
 const dateIso = z.union([z.literal(""), z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date attendue au format AAAA-MM-JJ")]);
@@ -60,7 +61,6 @@ export const SchemaDossier = z
     formation_opco: z.string().trim().max(200),
     formation_prix_unitaire_ht: centimes,
     formation_prix_presentiel_ht: centimes,
-    formateur_cout_horaire: centimes,
     signature_lieu: z.string().trim().max(120),
     mode_financement: z.enum(["opco", "faf", "entreprise", "fonds_propres"]),
   })
@@ -119,7 +119,8 @@ export async function creerDossier(s: Services, acteur: Acteur, donnees: unknown
     formation_lien_visio: v.formation_modalite !== "presentiel" ? f.formation_lien_visio : "",
     formation_opco: v.mode_financement === "opco" || v.mode_financement === "faf" ? ent.entreprise_opco || f.formation_opco : "",
     formation_prix_unitaire_ht: f.formation_prix_unitaire_ht,
-    formateur_cout_horaire: f.formateur_cout_horaire,
+    // Version 7 : plus de coût horaire saisi ; la rémunération du formateur se calcule par la commission de l'organisme.
+    formateur_cout_horaire: null,
     questionnaire_positionnement: await modelePour(s, formateur_id, f.id, "positionnement"),
     questionnaire_acquis: await modelePour(s, formateur_id, f.id, "acquis"),
     cree_le: s.horloge.maintenant(),
@@ -134,6 +135,8 @@ export async function creerDossier(s: Services, acteur: Acteur, donnees: unknown
   await journaliser(s, { of_id: acteur.of_id, dossier_id: id, acteur, type: "dossier_cree", libelle: `Dossier ${d.dossier_reference} créé` });
   // « Modification 1 » : un positionnement déjà signé sur ce parcours est repris (recueil + test).
   await reprendrePositionnements(s, acteur, d);
+  // Version 7 : ce qui n'est pas repris part aussitôt à l'apprenant en page interactive (lien personnel + PDF QR code).
+  await envoyerFormulairesAutomatiques(s, d, ["recueil", "positionnement"]);
   return d;
 }
 

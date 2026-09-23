@@ -18,9 +18,13 @@ const Schema = z.object({
   CHROMIUM_PATH: z.string().default(""),
   /** Assistant IA de l'espace pédagogique (facultatif) : les deux doivent être renseignés pour l'activer. */
   ANTHROPIC_API_KEY: z.string().default(""),
-  IA_MODELE: z.string().default(""),
+  IA_MODELE: z.string().default("claude-sonnet-5"),
+  /** Identifiant de workspace Anthropic (obligatoire si la clé n'est pas rattachée à un workspace). */
+  IA_WORKSPACE_ID: z.string().default(""),
+  /** Clé de chiffrement des secrets enregistrés en base (32 octets en hexadécimal) ; vide = fichier `.cle-secrets` créé à côté de la base. */
+  CLE_SECRETS: z.string().default(""),
   /** « oui » : l'IA peut mener une recherche web avant de rédiger parcours et supports (coût supplémentaire). */
-  IA_RECHERCHE_WEB: z.enum(["oui", "non"]).default("non"),
+  IA_RECHERCHE_WEB: z.enum(["oui", "non"]).default("oui"),
   /**
    * Compte formateur « pilote », créé (ou vérifié) à CHAQUE démarrage, même sur une base existante.
    * Demande du 23/09/2026. Vider COMPTE_PILOTE_EMAIL pour ne pas le créer.

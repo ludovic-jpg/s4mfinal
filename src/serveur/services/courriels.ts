@@ -123,4 +123,33 @@ export const courriels = {
       "Votre formateur s'en servira pour adapter la formation à vos besoins et à votre niveau.",
     ], { libelle: "Revoir ou télécharger mon positionnement", url: a.lien }),
   }),
+
+  // ——— Version 7 : formulaires de l'apprenant en page interactive ———
+
+  formulaireApprenant: (a: { of_nom: string; prenom: string; formateur: string; formation: string; libelle: string; message: string; lien: string; expire: string; relance: boolean }): Courriel => ({
+    sujet: `${a.relance ? "Rappel — " : ""}${a.libelle} — ${a.formation}`,
+    corps_html: habiller(a.of_nom, `Bonjour ${a.prenom},`, [
+      a.relance ? `Petit rappel : votre formulaire « <strong>${e(a.libelle)}</strong> » pour la formation <strong>${e(a.formation)}</strong> attend toujours vos réponses.` : `${e(a.formateur) || "Votre formateur"} vous invite à renseigner et signer en ligne le formulaire « <strong>${e(a.libelle)}</strong> » de la formation <strong>${e(a.formation)}</strong>.`,
+      a.message ? `<em>« ${e(a.message)} »</em>` : "",
+      "Sans compte à créer : la page s'ouvre à votre nom. Vous répondez, vous pouvez enregistrer et reprendre plus tard, puis vous signez avec le doigt ou la souris. Le document signé vous est renvoyé et rejoint automatiquement votre dossier.",
+      "Le même lien figure, avec un QR code, dans le document joint à ce message.",
+      `Ce lien est personnel et valable jusqu'au ${e(a.expire)}.`,
+    ].filter(Boolean), { libelle: "Ouvrir mon formulaire", url: a.lien }),
+  }),
+
+  formulaireConfirmation: (a: { of_nom: string; prenom: string; formation: string; libelle: string; lien: string }): Courriel => ({
+    sujet: `Votre ${a.libelle.toLowerCase()} est enregistré — ${a.formation}`,
+    corps_html: habiller(a.of_nom, `Bonjour ${a.prenom},`, [
+      `Merci : votre formulaire « <strong>${e(a.libelle)}</strong> » pour <strong>${e(a.formation)}</strong> est complet et signé. Le document signé est joint à ce message.`,
+      "Il a rejoint automatiquement votre dossier de formation.",
+    ], { libelle: "Revoir ou télécharger mon document", url: a.lien }),
+  }),
+
+  formulaireRecu: (a: { of_nom: string; prenom: string; apprenant: string; formation: string; libelle: string; reference: string; lien: string }): Courriel => ({
+    sujet: `${a.libelle} signé — ${a.apprenant} (${a.reference})`,
+    corps_html: habiller(a.of_nom, `Bonjour ${a.prenom},`, [
+      `${e(a.apprenant)} a renseigné et signé « <strong>${e(a.libelle)}</strong> » pour <strong>${e(a.formation)}</strong> (dossier ${e(a.reference)}).`,
+      "La pièce est validée dans le dossier ; le document signé est joint.",
+    ], { libelle: "Ouvrir le dossier", url: a.lien }),
+  }),
 };

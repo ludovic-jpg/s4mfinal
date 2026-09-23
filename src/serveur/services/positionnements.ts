@@ -15,14 +15,13 @@ import { z } from "zod";
 import { FORMULAIRES, validerReponses, type FormulaireDef } from "@/domaine/formulaires/definitions";
 import { corriger, sansCorrige, type Questionnaire } from "@/domaine/formulaires/qcm";
 import { echapperHtml as e } from "@/domaine/gabarits/moteur";
-import { trameTestPositionnement, type ModuleParcours } from "@/domaine/pedagogie/parcours";
 import { validerDemandeSignature } from "@/domaine/signature/preuve";
 import { entrepriseCliente, formateur, modeleOutil, positionnement, stagiaire } from "../bd/schema";
 import { nomSur } from "../ports/archive";
 import { dateIso, jetonAleatoire, nouvelId, sha256 } from "../ports/divers";
 import { stagiairesDuDossier, type LigneDossier } from "./agregat";
 import { courriels } from "./courriels";
-import { enregistrerEvaluation } from "./evaluations";
+import { enregistrerReponses } from "./evaluations";
 import { lireFormation } from "./formations";
 import { lireOrganisme } from "./organisme";
 import { lireStagiaire } from "./repertoire";
@@ -61,22 +60,11 @@ export async function inviterAuPositionnement(s: Services, acteur: Acteur, donne
   const f = await lireFormation(s, acteur, v.formation_id);
   if (!st.stagiaire_email) throw invalide("La fiche de l'apprenant n'a pas d'adresse e-mail : ajoutez-la pour pouvoir l'inviter.");
 
-  // Sans test de positionnement pour ce parcours, on en crée un (trame par objectifs), rangé dans les outils.
-  let test = await modele(s, formateur_id, f.id, "positionnement");
-  let test_cree = false;
-  {
-    if (!test) {
-      const modules = (f.formation_modules as ModuleParcours[]).length
-        ? (f.formation_modules as ModuleParcours[])
-        : [{ titre: f.formation_titre, duree_heures: 1, objectifs: f.formation_objectifs.split("\n").filter((x) => x.trim()), contenus: [], methodes: "", mise_en_pratique: "", evaluation: "" }];
-      if (modules.every((m) => m.objectifs.length === 0)) throw invalide("Ce parcours n'a ni test de positionnement, ni objectifs : renseignez ses objectifs ou générez son test dans « Outils pédagogiques ».");
-      const q = trameTestPositionnement(f.formation_titre, modules);
-      const id = nouvelId();
-      await s.bd.insert(modeleOutil).values({ id, of_id: acteur.of_id, formateur_id, formation_id: f.id, type: "positionnement", titre: q.titre, contenu: q, cree_le: s.horloge.maintenant(), maj_le: s.horloge.maintenant() });
-      test = (await s.bd.select().from(modeleOutil).where(eq(modeleOutil.id, id)))[0]!;
-      test_cree = true;
-    }
-  }
+  // Version 7 : plus de trame automatique. Le test de positionnement se génère avec l'IA (questions de connaissances)
+  // depuis la fiche formation, puis s'enregistre dans les outils ; sans test, l'invitation est refusée avec la marche à suivre.
+  const test = await modele(s, formateur_id, f.id, "positionnement");
+  if (!test) throw invalide("Ce parcours n'a pas encore de test de positionnement : générez-le avec l'IA depuis la fiche formation (« Générer le test de positionnement »), enregistrez-le, puis invitez l'apprenant.");
+  const test_cree = false;
   const recueil = await modele(s, formateur_id, f.id, "recueil");
   const supplementaires = ((recueil?.contenu as { questions_supplementaires?: string[] } | undefined)?.questions_supplementaires ?? []).slice(0, 10);
 
@@ -341,9 +329,10 @@ export async function reprendrePositionnements(s: Services, acteur: Acteur, d: L
     if (!p) continue;
     try {
       const recueil = Object.fromEntries(Object.entries((p.recueil ?? {}) as Record<string, string>).filter(([k]) => !k.startsWith("supp_")));
-      await enregistrerEvaluation(s, acteur, d.id, "recueil", { reponses: recueil, stagiaire_id: st.id });
+      const par = { utilisateur_id: st.utilisateur_id, acteur, validerPiece: true };
+      await enregistrerReponses(s, d, st.id, "recueil", { reponses: recueil }, par);
       if (p.questionnaire && JSON.stringify(p.questionnaire) === JSON.stringify(d.questionnaire_positionnement)) {
-        await enregistrerEvaluation(s, acteur, d.id, "positionnement", { reponses: p.reponses, stagiaire_id: st.id, ajustement: `Repris du positionnement signé le ${dateIso(p.signe_le!)}.` });
+        await enregistrerReponses(s, d, st.id, "positionnement", { reponses: p.reponses, ajustement: `Repris du positionnement signé le ${dateIso(p.signe_le!)}.` }, par);
       }
       repris++;
       await journaliser(s, { of_id: d.of_id, dossier_id: d.id, acteur, type: "positionnement_repris", libelle: `Positionnement signé de ${st.stagiaire_prenom} ${st.stagiaire_nom} repris dans le dossier` });
