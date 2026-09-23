@@ -1,7 +1,8 @@
 /**
  * Module 3 — Mes outils pédagogiques : modèles de recueil, de test de positionnement et d'évaluation des acquis
- * (F-OUT-01 à 03). « Modification 1 » (23/09/2026) : génération en un clic (trame ou IA) depuis le parcours, puis
- * aménagement ; archives restaurables, historique des versions, versions imprimables (et corrigé).
+ * (F-OUT-01 à 03). « Modification 1 » (23/09/2026) puis version 7 : génération en un clic par l'assistant IA depuis le
+ * parcours et son dossier d'enjeux, puis aménagement ; archives restaurables, historique des versions, versions
+ * imprimables (et corrigé).
  */
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -11,7 +12,7 @@ import { api, ErreurApi, instantFr, type Formation, type Outil } from "../api";
 import { Alerte, Bouton, Carte, Champ, Chargement, cx, EtatVide, Etiquette, Modale, Onglets, Selecteur, TitrePage, useNotifier } from "../ui/base";
 import { BandeauBrouillon } from "../ui/BandeauBrouillon";
 import { useBrouillonLocal } from "../ui/brouillon";
-import { BoutonIaQcm, useIaDisponible } from "./AssistantIa";
+import { AlerteIaIndisponible, BoutonIaQcm, MentionMoteur, useEtatIa } from "./AssistantIa";
 import { HistoriqueVersions } from "./Versions";
 
 type TypeOutil = "recueil" | "positionnement" | "acquis";
@@ -213,17 +214,17 @@ export function Outils() {
 }
 
 /**
- * Génération d'un test de positionnement ou d'une évaluation des acquis depuis un parcours (« Modification 1 »).
- * Trame (auto-positionnement par objectif, toujours disponible) ou IA (questions de connaissances, si configurée).
+ * Génération d'un test de positionnement ou d'une évaluation des acquis depuis un parcours (« Modification 1 », puis
+ * version 7 : toujours par l'assistant IA, à partir du dossier d'enjeux et du parcours — questions de connaissances).
  * Le résultat s'ouvre dans l'éditeur : on aménage, puis on enregistre.
  */
 export function GenerateurTest({ formationId, type: typeInitial, formations, termine }: { formationId?: string; type?: "positionnement" | "acquis"; formations?: Formation[]; termine: () => void }) {
-  const iaDisponible = useIaDisponible();
+  const ia = useEtatIa();
   const liste = useQuery({ queryKey: ["formations", "actives"], queryFn: () => api.get<Formation[]>("/formations"), enabled: !formations });
   const toutes = formations ?? liste.data ?? [];
-  const [choix, setChoix] = useState({ formation_id: formationId ?? "", type: typeInitial ?? "positionnement", nombre: "10", mode: "trame" as "trame" | "ia" });
+  const [choix, setChoix] = useState({ formation_id: formationId ?? "", type: typeInitial ?? "positionnement", nombre: "10" });
   const generer = useMutation({
-    mutationFn: () => api.post<{ questionnaire: { titre: string; questions: Question[] }; source: string }>("/ia/test", { formation_id: choix.formation_id, type: choix.type, nombre: Number(choix.nombre), mode: choix.mode }),
+    mutationFn: () => api.post<{ questionnaire: { titre: string; questions: Question[] }; source: string }>("/ia/test", { formation_id: choix.formation_id, type: choix.type, nombre: Number(choix.nombre) }),
   });
   if (generer.data) {
     return (
@@ -235,8 +236,10 @@ export function GenerateurTest({ formationId, type: typeInitial, formations, ter
     );
   }
   const erreurs = generer.error instanceof ErreurApi && Array.isArray(generer.error.details?.erreurs) ? generer.error.details.erreurs : [];
+  const formationChoisie = toutes.find((f) => f.id === choix.formation_id);
   return (
     <div className="space-y-4">
+      {!ia.chargement && !ia.disponible && <AlerteIaIndisponible />}
       <div className="grid gap-4 sm:grid-cols-2">
         <Selecteur libelle="Parcours de formation" value={choix.formation_id} disabled={Boolean(formationId)} onChange={(e) => setChoix({ ...choix, formation_id: e.target.value })}>
           <option value="">— Choisir —</option>
@@ -249,18 +252,21 @@ export function GenerateurTest({ formationId, type: typeInitial, formations, ter
         <Selecteur libelle="Nombre de questions (au plus)" value={choix.nombre} onChange={(e) => setChoix({ ...choix, nombre: e.target.value })}>
           {NOMBRES_QUESTIONS.map((n) => <option key={n} value={n}>{n} questions</option>)}
         </Selecteur>
-        <Selecteur libelle="Moteur" value={choix.mode} onChange={(e) => setChoix({ ...choix, mode: e.target.value as "trame" | "ia" })}>
-          <option value="trame">Trame : auto-positionnement par objectif</option>
-          <option value="ia" disabled={!iaDisponible}>Assistant IA : questions de connaissances{iaDisponible ? "" : " (non configuré)"}</option>
-        </Selecteur>
       </div>
       <p className="text-[13px] text-encre-2">
-        La trame pose une question par objectif du parcours, avec une échelle de maîtrise à quatre niveaux : format reconnu pour mesurer un niveau de départ (indicateur Qualiopi n° 8). Pour l'évaluation des acquis, complétez-la par des questions de connaissances ou une mise en situation (indicateur n° 11).
+        L'assistant rédige des questions de connaissances à choix multiples, fondées sur le dossier d'enjeux et le parcours de la formation : le test de positionnement mesure le niveau de départ (indicateur Qualiopi n° 8), l'évaluation des acquis ce qui a été appris (indicateur n° 11). Vous relisez chaque question et chaque bonne réponse avant d'enregistrer.
       </p>
+      {formationChoisie && !formationChoisie.dossier_enjeux && (
+        <Alerte>Cette formation n'a pas encore de dossier d'enjeux : il sera constitué d'abord (recherche web), ce qui ajoute une minute environ.</Alerte>
+      )}
       {generer.error && <Alerte ton="danger" titre={generer.error.message}>{erreurs.length > 0 && <ul className="list-disc pl-4">{erreurs.map((x) => <li key={x}>{x}</li>)}</ul>}</Alerte>}
-      <Bouton variante="primaire" icone={<Sparkles className="size-4" aria-hidden />} disabled={!choix.formation_id} enCours={generer.isPending} onClick={() => generer.mutate()}>
-        Générer le brouillon
-      </Bouton>
+      <div className="flex flex-wrap items-center gap-3">
+        <Bouton variante="primaire" icone={<Sparkles className="size-4" aria-hidden />} disabled={!choix.formation_id || !ia.disponible} enCours={generer.isPending} onClick={() => generer.mutate()}>
+          Générer le brouillon
+        </Bouton>
+        {ia.disponible && <MentionMoteur description={ia.description} />}
+        {generer.isPending && <span className="text-[12.5px] text-encre-3">Rédaction en cours — une à deux minutes.</span>}
+      </div>
     </div>
   );
 }

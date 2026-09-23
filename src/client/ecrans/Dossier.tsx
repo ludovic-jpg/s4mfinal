@@ -14,7 +14,7 @@ import { ListeOuAutre } from "../ui/champs";
 import { FINANCEURS, MODALITES as LISTE_MODALITES, MODES_FINANCEMENT, NIVEAUX } from "@/domaine/pedagogie/listes";
 import { ZoneDeTrace } from "../ui/Signature";
 import { AutresPieces, EspaceCommunication, ListePieces, useRafraichirDossier } from "./DossierPieces";
-import { Questionnaires } from "./DossierQuestionnaires";
+import { FormulairesApprenant, Questionnaires } from "./DossierQuestionnaires";
 
 const ETAPES = ["A", "B", "C", "D", "E", "F", "G"] as const;
 const TITRES_ETAPES = ["Création", "Financement", "Début", "Fin", "Paiement", "Encaissé", "Archivé"];
@@ -221,7 +221,7 @@ function VueInterne({ d }: { d: Dossier }) {
           {d.pieces.some((p) => p.espace === null) && (
             <section>
               <h2 className="mb-1 text-base font-semibold">Hors espace de communication</h2>
-              <p className="mb-3 text-sm text-encre-2">Recueil, positionnement et enquêtes de satisfaction : renseignés en ligne, archivés avec le dossier.</p>
+              <p className="mb-3 text-sm text-encre-2">Recueil, positionnement, évaluation des acquis et enquêtes de satisfaction : renseignés et signés en ligne par l'apprenant, archivés avec le dossier. Les envois se suivent depuis l'onglet « Synthèse », sous chaque apprenant.</p>
               <AutresPieces d={d} />
             </section>
           )}
@@ -321,7 +321,7 @@ function Synthese({ d }: { d: Dossier }) {
                 <dd>{euros(fin.formateur_montant_total)}</dd>
               </div>
               <div className="flex justify-between gap-4 text-[13px] text-encre-3">
-                <dt>Soit, par heure</dt>
+                <dt>Soit, par heure de formation (calculé)</dt>
                 <dd>{euros(fin.formateur_cout_horaire)}</dd>
               </div>
             </dl>
@@ -361,7 +361,6 @@ function EditionDossier({ d }: { d: Dossier }) {
     formation_lieu_siret: f.formation_lieu_siret,
     heures_presentiel: f.formation_duree_heures_presentiel ?? "",
     heures_distanciel: f.formation_duree_heures_distanciel ?? "",
-    cout_horaire: f.formateur_cout_horaire === null ? "" : String(f.formateur_cout_horaire / 100),
     mode_financement: d.mode_financement,
   });
   const [seances, setSeances] = useState(d.seances.map((s) => ({ date: s.date, heure_debut: s.heure_debut, heure_fin: s.heure_fin })));
@@ -370,7 +369,7 @@ function EditionDossier({ d }: { d: Dossier }) {
 
   const enregistrer = useMutation({
     mutationFn: async () => {
-      const { prix, heures_presentiel, heures_distanciel, cout_horaire, ...reste } = v;
+      const { prix, heures_presentiel, heures_distanciel, ...reste } = v;
       await api.patch(`/dossiers/${d.id}`, {
         ...reste,
         formation_duree_heures_total: nombre(v.formation_duree_heures_total),
@@ -378,7 +377,6 @@ function EditionDossier({ d }: { d: Dossier }) {
         formation_prix_unitaire_ht: prix === "" ? null : Math.round(nombre(prix)! * 100),
         formation_duree_heures_presentiel: v.formation_modalite === "presentiel" ? nombre(v.formation_duree_heures_total) : v.formation_modalite === "distanciel" ? null : nombre(heures_presentiel),
         formation_duree_heures_distanciel: v.formation_modalite === "distanciel" ? nombre(v.formation_duree_heures_total) : v.formation_modalite === "presentiel" ? null : nombre(heures_distanciel),
-        formateur_cout_horaire: String(cout_horaire).trim() === "" ? null : Math.round(nombre(cout_horaire)! * 100),
       });
       await api.put(`/dossiers/${d.id}/seances`, { seances: seances.filter((s) => s.date) });
     },
@@ -435,11 +433,11 @@ function EditionDossier({ d }: { d: Dossier }) {
             </Selecteur>
             <ListeOuAutre libelle="Financeur (OPCO, FAF…)" options={FINANCEURS} value={v.formation_opco} onChange={(x) => setV({ ...v, formation_opco: x })} />
           </div>
-          <div className="grid gap-4 sm:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-2">
             <Champ libelle="Prix unitaire HT (€)" inputMode="decimal" aide="Par stagiaire." {...champ("prix")} />
-            <Champ libelle="Coût horaire formateur (€ HT)" inputMode="decimal" aide="Facultatif." {...champ("cout_horaire")} />
             <Champ libelle="Convention signée à" placeholder="Ville" {...champ("signature_lieu")} />
           </div>
+          <p className="text-[12.5px] text-encre-3">La rémunération du formateur n'est pas saisie : elle se calcule dans l'encadré « Finances », par la commission de portage de l'organisme.</p>
         </fieldset>
 
         <fieldset>
@@ -475,7 +473,6 @@ function EditionDossier({ d }: { d: Dossier }) {
 }
 
 function Stagiaires({ d }: { d: Dossier }) {
-  const acteur = useActeur();
   const rafraichir = useRafraichirDossier(d.id);
   const notifier = useNotifier();
   const inviter = useMutation({
@@ -528,11 +525,9 @@ function Stagiaires({ d }: { d: Dossier }) {
                 </div>
               )}
             </div>
-            {acteur.role === "formateur" && (
-              <div className="border-t border-trait bg-papier-2/60 p-3">
-                <Questionnaires d={d} stagiaireId={st.id} types={["recueil", "positionnement"]} />
-              </div>
-            )}
+            <div className="border-t border-trait bg-papier-2/60">
+              <FormulairesApprenant d={d} stagiaireId={st.id} />
+            </div>
           </Carte>
         ))}
       </div>

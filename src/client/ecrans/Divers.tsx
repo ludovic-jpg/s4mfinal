@@ -1,10 +1,11 @@
 /** Page BPF (F-BPF-01/02), boîte d'envoi des e-mails automatiques, compte et suppression de compte (F-RGPD-01). */
 import { useState } from "react";
-import { useMutation, useQuery } from "@tanstack/react-query";
-import { Download, FileSpreadsheet, Mail, Paperclip } from "lucide-react";
+import { Link } from "@tanstack/react-router";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Download, FileSpreadsheet, Mail, Paperclip, RefreshCw } from "lucide-react";
 import { api, dateFr, euros, instantFr, type ApercuSuppression, type Courrier, type VueBpf } from "../api";
 import { useActeur } from "../session";
-import { Alerte, Bouton, Carte, Champ, Chargement, EtatVide, Etiquette, Modale, TitrePage } from "../ui/base";
+import { Alerte, Bouton, Carte, Champ, Chargement, EtatVide, Etiquette, Modale, Onglets, TitrePage, useNotifier } from "../ui/base";
 
 const nombre = (n: number) => String(n).replace(".", ",");
 
@@ -80,28 +81,71 @@ function Tableau({ titre, entetes, lignes }: { titre: string; entetes: string[];
 const TYPES_COURRIER: Record<string, string> = {
   invitation_apprenant: "Invitation", relance_apprenant: "Relance", candidature_soumise: "Candidature", candidature_decision: "Décision", demande_validation: "Demande de validation",
   renvoi_brouillon: "Renvoi", pieces_financement: "Pièces du financement", odm: "Ordre de mission", elements_pedagogiques: "Convocation", satisfaction_froid: "Satisfaction à froid",
+  formulaire_recueil: "Formulaire : recueil des besoins", formulaire_positionnement: "Formulaire : positionnement", formulaire_acquis: "Formulaire : acquis",
+  formulaire_satisfaction_chaud: "Formulaire : satisfaction à chaud", formulaire_satisfaction_froid: "Formulaire : satisfaction à froid", test_smtp: "E-mail de test",
+};
+/** Les types dérivés (`formulaire_<type>_confirmation`, `formulaire_<type>_recu`) sont reconnus par leur suffixe. */
+const libelleType = (type: string) => TYPES_COURRIER[type] ?? (type.startsWith("formulaire_") && type.endsWith("_confirmation") ? "Confirmation formulaire" : type.startsWith("formulaire_") && type.endsWith("_recu") ? "Formulaire signé reçu" : type);
+
+const STATUTS_COURRIER: Record<string, { libelle: string; ton: "neutre" | "accent" | "danger" }> = {
+  journalise: { libelle: "Journalisé", ton: "neutre" },
+  envoye: { libelle: "Envoyé", ton: "accent" },
+  echec: { libelle: "Échec", ton: "danger" },
 };
 
 export function Courriers() {
-  const [ouvert, setOuvert] = useState<Courrier | null>(null);
+  const acteur = useActeur();
+  const requetes = useQueryClient();
+  const notifier = useNotifier();
+  const [ouvert, setOuvert] = useState<string | null>(null);
+  const [filtre, setFiltre] = useState<"tous" | "echecs">("tous");
   const courriers = useQuery({ queryKey: ["courriers"], queryFn: () => api.get<Courrier[]>("/courriers") });
+  const renvoyer = useMutation({
+    mutationFn: (id: string) => api.post<{ statut: Courrier["statut"]; erreur: string }>(`/courriers/${id}/renvoyer`),
+    onSuccess: async (r) => {
+      await requetes.invalidateQueries({ queryKey: ["courriers"] });
+      if (r.statut === "envoye") notifier("succes", "E-mail renvoyé.");
+      else if (r.statut === "journalise") notifier("succes", "E-mail consigné dans la boîte d'envoi (l'envoi réel n'est pas activé).");
+      else notifier("danger", `Le renvoi a échoué : ${r.erreur || "raison inconnue"}`);
+      setOuvert(null);
+    },
+    onError: (e) => notifier("danger", e.message),
+  });
   if (courriers.isPending) return <Chargement />;
   if (courriers.error) return <Alerte ton="danger">{courriers.error.message}</Alerte>;
   const local = courriers.data.every((c) => c.statut === "journalise");
+  const echecs = courriers.data.filter((c) => c.statut === "echec").length;
+  const visibles = filtre === "echecs" ? courriers.data.filter((c) => c.statut === "echec") : courriers.data;
+  const detail = courriers.data.find((c) => c.id === ouvert) ?? null;
 
   return (
     <>
       <TitrePage titre="Boîte d'envoi" soustitre="Tous les e-mails automatiques de la plateforme, tels qu'ils ont été rédigés — pour la traçabilité, et pour vérifier ce que reçoivent vos interlocuteurs." />
-      {local && courriers.data.length > 0 && <div className="mb-5"><Alerte titre="Mode « boîte locale »">Aucun e-mail n'est réellement expédié : ils sont seulement consignés ici. L'envoi réel s'active dans le fichier .env (COURRIER_MODE=smtp).</Alerte></div>}
+      {local && courriers.data.length > 0 && (
+        <div className="mb-5">
+          <Alerte titre="Mode « boîte locale »">
+            Aucun e-mail n'est réellement expédié : ils sont seulement consignés ici. L'envoi réel se règle dans {acteur.role === "admin" ? <Link to="/admin/organisme" className="font-medium text-accent underline-offset-2 hover:underline">Organisme → E-mails</Link> : "Organisme → E-mails"} (administrateur).
+          </Alerte>
+        </div>
+      )}
+      {echecs > 0 && filtre === "tous" && <div className="mb-5"><Alerte ton="attention" titre={`${echecs} e-mail${echecs > 1 ? "s" : ""} n'${echecs > 1 ? "ont" : "a"} pas pu partir`}>Ouvrez-le pour lire la cause, corrigez les réglages d'envoi si besoin, puis « Renvoyer ».</Alerte></div>}
+      {courriers.data.length > 0 && (
+        <Onglets actif={filtre} choisir={setFiltre} onglets={[{ cle: "tous", libelle: "Tous", compteur: String(courriers.data.length) }, { cle: "echecs", libelle: "Échecs", compteur: String(echecs) }]} />
+      )}
       {courriers.data.length === 0 ? (
         <EtatVide icone={<Mail className="size-8" aria-hidden />} titre="Aucun e-mail pour l'instant" />
+      ) : visibles.length === 0 ? (
+        <EtatVide icone={<Mail className="size-8" aria-hidden />} titre="Aucun échec d'envoi">Tous les e-mails sont partis ou ont été consignés.</EtatVide>
       ) : (
         <Carte>
           <ul className="divide-y divide-trait">
-            {courriers.data.map((c) => (
+            {visibles.map((c) => (
               <li key={c.id}>
-                <button type="button" onClick={() => setOuvert(c)} className="grid w-full gap-x-4 gap-y-1 px-4 py-3 text-left hover:bg-papier-2 sm:grid-cols-[150px_minmax(0,1fr)_auto] sm:items-center sm:px-5">
-                  <span><Etiquette ton={c.statut === "echec" ? "danger" : "accent"}>{TYPES_COURRIER[c.type] ?? c.type}</Etiquette></span>
+                <button type="button" onClick={() => setOuvert(c.id)} className="grid w-full gap-x-4 gap-y-1 px-4 py-3 text-left hover:bg-papier-2 sm:grid-cols-[minmax(150px,auto)_minmax(0,1fr)_auto] sm:items-center sm:px-5">
+                  <span className="flex flex-wrap items-center gap-1.5">
+                    <Etiquette ton={STATUTS_COURRIER[c.statut]?.ton ?? "neutre"}>{STATUTS_COURRIER[c.statut]?.libelle ?? c.statut}</Etiquette>
+                    <span className="text-[12px] text-encre-2">{libelleType(c.type)}</span>
+                  </span>
                   <span className="min-w-0">
                     <span className="block truncate text-sm font-medium">{c.sujet}</span>
                     <span className="block truncate text-[13px] text-encre-2">À : {c.destinataire}</span>
@@ -116,13 +160,20 @@ export function Courriers() {
           </ul>
         </Carte>
       )}
-      <Modale ouverte={ouvert !== null} fermer={() => setOuvert(null)} titre={ouvert?.sujet ?? ""} large>
-        {ouvert && (
+      <Modale ouverte={detail !== null} fermer={() => setOuvert(null)} titre={detail?.sujet ?? ""} large>
+        {detail && (
           <>
-            <p className="mb-3 text-sm text-encre-2">À : {ouvert.destinataire} · {instantFr(ouvert.cree_le)}</p>
-            <iframe title={ouvert.sujet} sandbox="" srcDoc={ouvert.corps_html} className="h-[55dvh] w-full rounded-md border border-trait bg-carte" />
-            {(ouvert.pieces_jointes as Array<{ nom: string }>).length > 0 && (
-              <p className="mt-3 flex flex-wrap items-center gap-2 text-[13px] text-encre-2"><Paperclip className="size-3.5" aria-hidden />{(ouvert.pieces_jointes as Array<{ nom: string }>).map((p) => p.nom).join(" · ")}</p>
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+              <p className="flex flex-wrap items-center gap-2 text-sm text-encre-2">
+                <Etiquette ton={STATUTS_COURRIER[detail.statut]?.ton ?? "neutre"}>{STATUTS_COURRIER[detail.statut]?.libelle ?? detail.statut}</Etiquette>
+                <span>{libelleType(detail.type)} · À : {detail.destinataire} · {instantFr(detail.cree_le)}</span>
+              </p>
+              <Bouton taille="sm" variante={detail.statut === "echec" ? "primaire" : "secondaire"} icone={<RefreshCw className="size-3.5" aria-hidden />} enCours={renvoyer.isPending} onClick={() => renvoyer.mutate(detail.id)}>Renvoyer</Bouton>
+            </div>
+            {detail.statut === "echec" && <div className="mb-3"><Alerte ton="danger" titre="Cet e-mail n'a pas pu être envoyé"><p className="whitespace-pre-line">{detail.erreur || "Le serveur d'envoi n'a pas donné de raison."}</p></Alerte></div>}
+            <iframe title={detail.sujet} sandbox="" srcDoc={detail.corps_html} className="h-[55dvh] w-full rounded-md border border-trait bg-carte" />
+            {(detail.pieces_jointes as Array<{ nom: string }>).length > 0 && (
+              <p className="mt-3 flex flex-wrap items-center gap-2 text-[13px] text-encre-2"><Paperclip className="size-3.5" aria-hidden />{(detail.pieces_jointes as Array<{ nom: string }>).map((p) => p.nom).join(" · ")}</p>
             )}
           </>
         )}

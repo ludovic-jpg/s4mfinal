@@ -21,7 +21,8 @@ function nomStagiaire(d: Dossier, id: string | null) {
   return st ? `${st.prenom} ${st.nom}` : null;
 }
 
-function Apercu({ piece, fermer }: { piece: Piece; fermer: () => void }) {
+/** Aperçu d'une pièce (générée ou validée) dans un cadre isolé ; réutilisé par les formulaires de l'apprenant. */
+export function Apercu({ piece, fermer }: { piece: Pick<Piece, "id" | "libelle">; fermer: () => void }) {
   return (
     <Modale ouverte fermer={fermer} titre={piece.libelle} large>
       {/* Cadre isolé : le document s'affiche sans script ni ressource externe (CSP posée par le serveur). */}

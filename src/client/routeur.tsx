@@ -14,6 +14,7 @@ import { AdminCandidatures, AdminOrganisme } from "./ecrans/Admin";
 import { Bpf, Courriers, Compte } from "./ecrans/Divers";
 import { CoffreParcours, CoffresParcours } from "./ecrans/Coffre";
 import { PagePositionnement, Positionnements } from "./ecrans/Positionnements";
+import { PageFormulaire } from "./ecrans/Formulaire";
 import { Archives } from "./ecrans/Archives";
 
 const racine = createRootRoute({ component: Outlet, notFoundComponent: () => <p className="p-10 text-encre-2">Cette page n'existe pas.</p> });
@@ -29,6 +30,8 @@ const inscription = createRoute({ getParentRoute: () => racine, path: "/inscript
 const invitation = createRoute({ getParentRoute: () => racine, path: "/invitation/$jeton", component: Invitation });
 // Page publique de positionnement (« Modification 1 ») : accessible par le lien personnel reçu par e-mail, sans compte.
 const positionnementPublic = createRoute({ getParentRoute: () => racine, path: "/positionnement/$jeton", component: PagePositionnement });
+// Page publique d'un formulaire apprenant (version 7) : recueil, positionnement, acquis, satisfaction — par lien personnel ou QR code.
+const formulairePublic = createRoute({ getParentRoute: () => racine, path: "/formulaire/$jeton", component: PageFormulaire });
 
 // Application : tout ce qui suit passe par le cadre, qui exige une session.
 const app = createRoute({
@@ -67,6 +70,7 @@ const arbre = racine.addChildren([
   inscription,
   invitation,
   positionnementPublic,
+  formulairePublic,
   app.addChildren([accueil, mesDossiers, nouveauDossier, dossier, formations, formation, outils, repertoire, candidature, adminCandidatures, adminOrganisme, bpf, courriers, compte, profil, coffres, coffre, positionnements, archives]),
 ]);
 

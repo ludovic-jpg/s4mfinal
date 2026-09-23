@@ -5,7 +5,7 @@
  *    B. test de positionnement, date, signature tracée ; « enregistrer et reprendre plus tard » à tout moment.
  */
 import { useEffect, useRef, useState } from "react";
-import { useParams } from "@tanstack/react-router";
+import { Link, useParams } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Archive, CheckCircle2, ClipboardList, Download, Mail, Plus, RotateCcw, Save, Send, ShieldCheck, UserPlus } from "lucide-react";
 import type { Champ as ChampFormulaire } from "@/domaine/formulaires/definitions";
@@ -27,12 +27,14 @@ export function InviterPositionnement({ formationId, stagiaireId, termine }: { f
       await requetes.invalidateQueries({ queryKey: ["positionnements"] });
       await requetes.invalidateQueries({ queryKey: ["coffre-parcours"] });
       await navigator.clipboard?.writeText(r.lien).catch(() => undefined);
-      notifier("succes", `Invitation envoyée par e-mail${r.test_cree ? " — un test de positionnement a été créé depuis le parcours (à relire dans vos outils)" : ""}. Le lien est aussi copié.`);
+      notifier("succes", "Invitation envoyée par e-mail. Le lien personnel est aussi copié dans le presse-papiers.");
       termine();
     },
   });
   if (stagiaires.isPending || formations.isPending) return <Chargement />;
   const choisi = stagiaires.data?.find((s) => s.id === v.stagiaire_id);
+  // Le serveur refuse l'invitation tant que le parcours n'a pas de test de positionnement : on renvoie vers la fiche.
+  const sansTest = inviter.error !== null && /test de positionnement/i.test(inviter.error.message) && v.formation_id !== "";
   return (
     <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); inviter.mutate(); }}>
       <Selecteur libelle="Apprenant" value={v.stagiaire_id} onChange={(e) => setV({ ...v, stagiaire_id: e.target.value })}>
@@ -46,7 +48,16 @@ export function InviterPositionnement({ formationId, stagiaireId, termine }: { f
       </Selecteur>
       <ZoneTexte libelle="Message personnel (facultatif)" rows={3} maxLength={1000} value={v.message} onChange={(e) => setV({ ...v, message: e.target.value })} />
       <p className="text-[13px] text-encre-2">L'apprenant reçoit un e-mail avec un lien personnel (30 jours) vers sa page : recueil des besoins, test de positionnement du parcours, date et signature. Le PDF signé sera téléchargeable par lui, par vous et par l'organisme.</p>
-      {inviter.error && <Alerte ton="danger">{inviter.error.message}</Alerte>}
+      {inviter.error && (
+        <Alerte ton="danger" titre={sansTest ? "Pas encore de test de positionnement sur ce parcours" : undefined}>
+          {inviter.error.message}
+          {sansTest && (
+            <p className="mt-2">
+              <Link to="/formations/$id" params={{ id: v.formation_id }} className="font-semibold underline underline-offset-4">Ouvrir la fiche formation</Link> — étape 3 du kit pédagogique : « Générer le test de positionnement ».
+            </p>
+          )}
+        </Alerte>
+      )}
       <Bouton type="submit" variante="primaire" icone={<Send className="size-4" aria-hidden />} disabled={!v.stagiaire_id || !v.formation_id} enCours={inviter.isPending}>Envoyer l'invitation</Bouton>
     </form>
   );

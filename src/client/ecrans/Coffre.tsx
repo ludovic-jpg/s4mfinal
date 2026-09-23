@@ -16,7 +16,7 @@ import { DIAPOS_PAR_MODULE, heuresTexte, type Diapo, type ModuleParcours } from 
 import { api, ErreurApi, dateFr, heuresFr, instantFr, octets, type CarteCoffre, type Formation, type VueCoffre } from "../api";
 import { useActeur } from "../session";
 import { Alerte, Bouton, Carte, Champ, Chargement, cx, EtatVide, Etiquette, Modale, Onglets, PastilleStatut, Selecteur, TitrePage, ZoneTexte, useNotifier } from "../ui/base";
-import { useIaDisponible } from "./AssistantIa";
+import { AlerteIaIndisponible, MentionMoteur, useEtatIa } from "./AssistantIa";
 import { InviterPositionnement } from "./Positionnements";
 
 export function CoffresParcours() {
@@ -311,53 +311,54 @@ function DepotCoffre({ formationId, partie, termine }: { formationId: string; pa
 }
 
 /**
- * Atelier des supports : on choisit un module, on fait préparer le plan de 20 diapositives (trame ou IA), on l'aménage,
- * puis on produit le PPTX, rangé dans le coffre-fort. Ou tout le parcours d'un coup.
+ * Atelier des supports (version 7 : toujours par l'assistant IA) : on choisit un module, on fait préparer le plan de
+ * 20 diapositives à partir du dossier d'enjeux et du parcours, on l'aménage, puis on produit le PPTX, rangé dans le
+ * coffre-fort. Ou tout le parcours d'un coup.
  */
 export function StudioSupports({ formation, formationId }: { formation?: Formation; formationId?: string }) {
   const id = formation?.id ?? formationId!;
   const requetes = useQueryClient();
   const notifier = useNotifier();
-  const iaDisponible = useIaDisponible();
+  const ia = useEtatIa();
   const donnees = useQuery({ queryKey: ["formation", id], queryFn: () => api.get<Formation>(`/formations/${id}`), initialData: formation });
   const [module, setModule] = useState("0");
-  const [mode, setMode] = useState<"trame" | "ia">("trame");
   const [diapos, setDiapos] = useState<Diapo[] | null>(null);
-  const plan = useMutation({ mutationFn: () => api.post<{ diapos: Diapo[] }>("/ia/plan-support", { formation_id: id, module_index: Number(module), mode }), onSuccess: (r) => setDiapos(r.diapos) });
+  const rafraichirCoffres = () => Promise.all([requetes.invalidateQueries({ queryKey: ["coffre-parcours", id] }), requetes.invalidateQueries({ queryKey: ["coffre", id] })]);
+  const plan = useMutation({ mutationFn: () => api.post<{ diapos: Diapo[] }>("/ia/plan-support", { formation_id: id, module_index: Number(module) }), onSuccess: (r) => setDiapos(r.diapos) });
   const produire = useMutation({
     mutationFn: () => api.post<{ nom: string }>("/supports", { formation_id: id, module_index: Number(module), diapos }),
-    onSuccess: async (r) => { await requetes.invalidateQueries({ queryKey: ["coffre-parcours", id] }); notifier("succes", `« ${r.nom} » est dans le coffre-fort.`); setDiapos(null); },
+    onSuccess: async (r) => { await rafraichirCoffres(); notifier("succes", `« ${r.nom} » est dans le coffre-fort.`); setDiapos(null); },
   });
   const tous = useMutation({
-    mutationFn: () => api.post<{ produits: Array<{ nom: string }>; echecs: string[] }>("/supports/tous", { formation_id: id, mode }),
-    onSuccess: async (r) => { await requetes.invalidateQueries({ queryKey: ["coffre-parcours", id] }); notifier(r.echecs.length ? "danger" : "succes", `${r.produits.length} support(s) produit(s)${r.echecs.length ? ` — ${r.echecs.length} échec(s)` : ""}.`); },
+    mutationFn: () => api.post<{ produits: Array<{ nom: string }>; echecs: string[] }>("/supports/tous", { formation_id: id }),
+    onSuccess: async (r) => { await rafraichirCoffres(); notifier(r.echecs.length ? "danger" : "succes", `${r.produits.length} support(s) produit(s)${r.echecs.length ? ` — ${r.echecs.length} échec(s)` : ""}.`); },
   });
   if (!donnees.data) return <Chargement />;
   const modules = donnees.data.formation_modules as ModuleParcours[];
   const erreurs = (e: unknown) => (e instanceof ErreurApi && Array.isArray(e.details?.erreurs) ? e.details.erreurs : []);
   const majDiapo = (i: number, x: Partial<Diapo>) => setDiapos((d) => d!.map((y, k) => (k === i ? { ...y, ...x } : y)));
+  const nbModules = Math.max(modules.length, 1);
 
   return (
     <div className="space-y-4">
+      {!ia.chargement && !ia.disponible && <AlerteIaIndisponible />}
       {modules.length === 0 && <Alerte ton="attention" titre="Pas encore de parcours en modules">Le support sera construit sur la formation entière (objectifs et programme). Pour un support par module, générez d'abord le parcours dans la fiche formation.</Alerte>}
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Selecteur libelle="Module" value={module} onChange={(e) => { setModule(e.target.value); setDiapos(null); }}>
-          {(modules.length ? modules : [{ titre: donnees.data.formation_titre, duree_heures: donnees.data.formation_duree_heures_total ?? 0 }]).map((m, i) => (
-            <option key={i} value={i}>Module {i + 1} — {m.titre} ({heuresTexte(m.duree_heures)})</option>
-          ))}
-        </Selecteur>
-        <Selecteur libelle="Moteur" value={mode} onChange={(e) => setMode(e.target.value as "trame" | "ia")}>
-          <option value="trame">Trame cognitive (sans IA) — à compléter</option>
-          <option value="ia" disabled={!iaDisponible}>Assistant IA — recherche, contenu rédigé{iaDisponible ? "" : " (non configuré)"}</option>
-        </Selecteur>
-      </div>
+      {!donnees.data.dossier_enjeux && <Alerte>Cette formation n'a pas encore de dossier d'enjeux : l'assistant le constituera d'abord (recherche web), ce qui ajoute une minute environ.</Alerte>}
+      <Selecteur libelle="Module" value={module} onChange={(e) => { setModule(e.target.value); setDiapos(null); }}>
+        {(modules.length ? modules : [{ titre: donnees.data.formation_titre, duree_heures: donnees.data.formation_duree_heures_total ?? 0 }]).map((m, i) => (
+          <option key={i} value={i}>Module {i + 1} — {m.titre} ({heuresTexte(m.duree_heures)})</option>
+        ))}
+      </Selecteur>
       <p className="text-[13px] text-encre-2">
-        Principes appliqués : une idée par diapositive, 3 à 5 points, un visuel suggéré (texte + image), un point d'étape toutes les 4 à 5 diapositives, un atelier de mise en pratique (consigne, critères, débriefing), une synthèse et un quiz. Les notes du formateur accompagnent chaque diapositive.
+        L'assistant rédige le contenu de chaque diapositive à partir du dossier d'enjeux et du module : une idée par diapositive, 3 à 5 points, un visuel suggéré, un point d'étape toutes les 4 à 5 diapositives, un atelier de mise en pratique (consigne, critères, débriefing), une synthèse et un quiz. Les notes du formateur accompagnent chaque diapositive. Vous relisez et aménagez le plan avant de produire le fichier.
       </p>
-      <div className="flex flex-wrap gap-2">
-        <Bouton variante="primaire" icone={<Sparkles className="size-4" aria-hidden />} enCours={plan.isPending} onClick={() => plan.mutate()}>Préparer le plan du module</Bouton>
-        <Bouton enCours={tous.isPending} onClick={() => confirm(`Produire directement les supports de tous les modules (${mode === "ia" ? "IA" : "trame"}) ? Les supports déjà produits passent à la corbeille.`) && tous.mutate()}>Produire tous les modules d'un coup</Bouton>
+      <div className="flex flex-wrap items-center gap-3">
+        <Bouton variante="primaire" icone={<Sparkles className="size-4" aria-hidden />} disabled={!ia.disponible} enCours={plan.isPending} onClick={() => plan.mutate()}>Préparer le plan du module</Bouton>
+        <Bouton disabled={!ia.disponible} enCours={tous.isPending} onClick={() => confirm(`Produire directement les supports de tous les modules (${nbModules}) ? Comptez une à deux minutes par module. Les supports déjà produits passent à la corbeille.`) && tous.mutate()}>Produire tous les modules d'un coup</Bouton>
+        {ia.disponible && <MentionMoteur description={ia.description} />}
       </div>
+      {plan.isPending && <p role="status" className="text-[13px] text-encre-3">Rédaction du plan de {DIAPOS_PAR_MODULE} diapositives — une à deux minutes.</p>}
+      {tous.isPending && <p role="status" className="text-[13px] text-encre-3">Production de {nbModules} support(s), module après module — comptez une à deux minutes par module. Vous pouvez laisser cette fenêtre ouverte.</p>}
       {(plan.error || tous.error) && <Alerte ton="danger" titre={(plan.error ?? tous.error)!.message}>{erreurs(plan.error ?? tous.error).length > 0 && <ul className="list-disc pl-4">{erreurs(plan.error ?? tous.error).map((x) => <li key={x}>{x}</li>)}</ul>}</Alerte>}
       {tous.data?.echecs.length ? <Alerte ton="attention" titre="Certains modules n'ont pas pu être produits"><ul className="list-disc pl-4">{tous.data.echecs.map((x) => <li key={x}>{x}</li>)}</ul></Alerte> : null}
 

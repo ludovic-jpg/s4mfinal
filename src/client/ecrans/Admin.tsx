@@ -1,9 +1,12 @@
-/** Espace de l'organisme : décision sur les candidatures (F-ONB-02/03) et configuration de l'organisme (multi-organismes). */
-import { useState } from "react";
+/**
+ * Espace de l'organisme : décision sur les candidatures (F-ONB-02/03) et configuration de l'organisme (multi-organismes).
+ * Version 7 : l'assistant IA et l'envoi des e-mails se règlent ici, en onglets, sans toucher au fichier `.env`.
+ */
+import { useId, useState, type ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Download, UserRoundCheck } from "lucide-react";
-import { api, ErreurApi, instantFr, octets, type CandidatureAdmin, type LigneCandidature, type Organisme } from "../api";
-import { Alerte, Bouton, Carte, Champ, Chargement, EtatVide, Etiquette, ListeManques, Modale, TitrePage, ZoneTexte, useNotifier } from "../ui/base";
+import { Download, ExternalLink, KeyRound, Mail, Send, Sparkles, Trash2, UserRoundCheck } from "lucide-react";
+import { api, ErreurApi, instantFr, octets, type CandidatureAdmin, type LigneCandidature, type Organisme, type Reglages, type ResultatTestCourriel } from "../api";
+import { Alerte, Bouton, Carte, Champ, Chargement, cx, EtatVide, Etiquette, ListeManques, Modale, Onglets, Selecteur, TitrePage, ZoneTexte, useNotifier } from "../ui/base";
 import { ZoneDeTrace } from "../ui/Signature";
 
 const STATUTS: Record<string, { libelle: string; ton: "neutre" | "attente" | "accent" | "danger" }> = {
@@ -127,7 +130,24 @@ const GROUPES: Array<{ titre: string; aide?: string; champs: Array<[keyof Organi
   { titre: "Coordonnées bancaires", champs: [["of_banque_nom", "Banque"], ["of_iban", "IBAN"], ["of_bic", "BIC"]] },
 ];
 
+type OngletOrganisme = "identite" | "ia" | "emails";
+
 export function AdminOrganisme() {
+  const [onglet, setOnglet] = useState<OngletOrganisme>("identite");
+  return (
+    <div className="mx-auto max-w-3xl">
+      <TitrePage titre="Organisme de formation" soustitre="L'identité de l'organisme, son assistant IA et l'envoi de ses e-mails : chaque organisme porté par la plateforme a sa configuration." />
+      <Onglets actif={onglet} choisir={setOnglet} onglets={[{ cle: "identite", libelle: "Identité" }, { cle: "ia", libelle: "Assistant IA" }, { cle: "emails", libelle: "E-mails" }]} />
+      {onglet === "identite" && <OngletIdentite />}
+      {onglet === "ia" && <OngletAssistantIa />}
+      {onglet === "emails" && <OngletEmails />}
+    </div>
+  );
+}
+
+// ——— Identité (inchangé sur le fond : le formulaire d'origine, dans son onglet) ———
+
+function OngletIdentite() {
   const requetes = useQueryClient();
   const notifier = useNotifier();
   const config = useQuery({ queryKey: ["organisme"], queryFn: () => api.get<{ organisme: Organisme; manques: string[] }>("/admin/organisme") });
@@ -154,8 +174,7 @@ export function AdminOrganisme() {
   });
 
   return (
-    <form className="mx-auto max-w-3xl" onSubmit={(e) => { e.preventDefault(); enregistrer.mutate(); }}>
-      <TitrePage titre="Organisme de formation" soustitre="L'identité de l'organisme est une configuration : chaque organisme porté par la plateforme a la sienne." actions={<Bouton type="submit" variante="primaire" enCours={enregistrer.isPending}>Enregistrer</Bouton>} />
+    <form onSubmit={(e) => { e.preventDefault(); enregistrer.mutate(); }}>
       {config.data.manques.length > 0 && <div className="mb-6"><ListeManques titre="Tant que ces champs sont vides, aucun dossier ne peut être validé :" manques={config.data.manques} /></div>}
       {enregistrer.error && <div className="mb-6"><Alerte ton="danger">{enregistrer.error.message}</Alerte></div>}
 
@@ -193,9 +212,238 @@ export function AdminOrganisme() {
         </Carte>
 
         <Carte className="p-5">
-          <Champ libelle="Couleur de l'organisme" type="color" className="!h-10 !w-24 !p-1" aide="Reprise sur les pièces générées." value={of.couleur ?? "#1d6a45"} onChange={(e) => setV({ ...v, couleur: e.target.value })} />
+          <Champ libelle="Couleur de l'organisme" type="color" className="!h-10 !w-24 !p-1" aide="Reprise sur les pièces générées et la page des formulaires apprenant." value={of.couleur ?? "#1d6a45"} onChange={(e) => setV({ ...v, couleur: e.target.value })} />
         </Carte>
       </div>
+      <BarreEnregistrer enCours={enregistrer.isPending} />
     </form>
+  );
+}
+
+// ——— Réglages (IA, e-mails) : mécanique commune ———
+
+/** Clés modifiables par l'interface (les secrets s'envoient en clair, vides = inchangés, « - » = effacer). */
+type ClesReglages = "ia_cle" | "ia_modele" | "ia_workspace" | "ia_recherche_web" | "ia_active" | "smtp_hote" | "smtp_port" | "smtp_securise" | "smtp_utilisateur" | "smtp_mot_de_passe" | "courrier_expediteur" | "courrier_actif";
+type Modifs = Partial<Record<ClesReglages, string>>;
+const EFFACER = "-";
+
+function useReglages() {
+  const requetes = useQueryClient();
+  const notifier = useNotifier();
+  const reglages = useQuery({ queryKey: ["reglages"], queryFn: () => api.get<Reglages>("/admin/reglages") });
+  const [v, setV] = useState<Modifs>({});
+  const enregistrer = useMutation({
+    mutationFn: () => api.patch<Reglages>("/admin/reglages", v),
+    onSuccess: (r) => {
+      requetes.setQueryData(["reglages"], r);
+      setV({});
+      notifier("succes", "Réglages enregistrés.");
+    },
+    onError: (e) => notifier("danger", e.message),
+  });
+  const err: Record<string, string> = enregistrer.error instanceof ErreurApi ? (enregistrer.error.details?.champs ?? {}) : {};
+  const poser = (m: Modifs) => setV((x) => ({ ...x, ...m }));
+  return { reglages, v, poser, enregistrer, err, modifie: Object.keys(v).length > 0 };
+}
+
+function BarreEnregistrer({ enCours, modifie = true, aide }: { enCours: boolean; modifie?: boolean; aide?: string }) {
+  return (
+    <div className="sticky bottom-0 z-10 -mx-4 mt-6 flex flex-wrap items-center gap-3 border-t border-trait bg-papier/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6">
+      <Bouton type="submit" variante="primaire" enCours={enCours} disabled={!modifie}>Enregistrer</Bouton>
+      <span className="text-[13px] text-encre-3">{aide ?? (modifie ? "Des modifications ne sont pas encore enregistrées." : "Aucune modification en attente.")}</span>
+    </div>
+  );
+}
+
+/** Interrupteur oui / non : un vrai bouton `switch`, au clavier comme au doigt. */
+function Interrupteur({ libelle, aide, actif, changer }: { libelle: string; aide?: ReactNode; actif: boolean; changer: (v: boolean) => void }) {
+  const id = useId();
+  return (
+    <div className="flex items-start justify-between gap-4">
+      <div className="min-w-0">
+        <label htmlFor={id} className="block cursor-pointer text-[15px] font-medium">{libelle}</label>
+        {aide && <p className="mt-0.5 text-[13px] text-encre-3">{aide}</p>}
+      </div>
+      <button
+        id={id}
+        type="button"
+        role="switch"
+        aria-checked={actif}
+        onClick={() => changer(!actif)}
+        className={cx("relative mt-0.5 h-7 w-12 shrink-0 rounded-full transition-colors duration-150", actif ? "bg-accent" : "bg-trait-fort")}
+      >
+        <span className="sr-only">{actif ? "Activé" : "Désactivé"}</span>
+        <span className={cx("absolute top-1 size-5 rounded-full bg-carte shadow-carte transition-[left] duration-150 ease-(--ease-out)", actif ? "left-6" : "left-1")} aria-hidden />
+      </button>
+    </div>
+  );
+}
+
+/** Champ secret : jamais réaffiché ; vide = inchangé ; bouton pour l'effacer. */
+function ChampSecret({ libelle, defini, valeur, changer, aide, erreur, autoComplete = "off", libelleEffacer }: { libelle: string; defini: boolean; valeur: string; changer: (v: string) => void; aide?: string; erreur?: string; autoComplete?: string; libelleEffacer: string }) {
+  const effacement = valeur === EFFACER;
+  const etat = effacement ? <Etiquette ton="danger">Sera effacé à l'enregistrement</Etiquette> : defini ? <Etiquette ton="accent">Définie ✓</Etiquette> : <Etiquette ton="attente">Aucune</Etiquette>;
+  if (effacement) {
+    return (
+      <div className="min-w-0">
+        <p className="mb-1.5 flex flex-wrap items-center gap-2 text-[13px] font-medium text-encre-2">{libelle} {etat}</p>
+        <div className="flex flex-wrap items-center gap-2 rounded-sm border border-danger/30 bg-danger-doux px-3 py-2 text-[13px] text-encre-2">
+          <span>La valeur enregistrée sera supprimée quand vous enregistrerez.</span>
+          <Bouton taille="sm" variante="discret" onClick={() => changer("")}>Annuler</Bouton>
+        </div>
+      </div>
+    );
+  }
+  return (
+    <div className="min-w-0">
+      <div className="flex flex-wrap items-end gap-2">
+        <div className="min-w-0 flex-1">
+          <Champ libelle={libelle} type="password" autoComplete={autoComplete} spellCheck={false} placeholder={defini ? "•••••••• (laisser vide pour ne pas changer)" : ""} value={valeur} onChange={(e) => changer(e.target.value)} erreur={erreur} />
+        </div>
+        {defini && <Bouton variante="discret" icone={<Trash2 className="size-4" aria-hidden />} onClick={() => changer(EFFACER)} className={erreur ? "self-start mt-6.5" : ""}>{libelleEffacer}</Bouton>}
+      </div>
+      <p className="mt-1.5 flex flex-wrap items-center gap-2 text-[13px] text-encre-3">{etat}{aide && <span>{aide}</span>}</p>
+    </div>
+  );
+}
+
+// ——— Onglet « Assistant IA » ———
+
+function OngletAssistantIa() {
+  const { reglages, v, poser, enregistrer, err, modifie } = useReglages();
+  if (reglages.isPending) return <Chargement />;
+  if (reglages.error) return <Alerte ton="danger">{reglages.error.message}</Alerte>;
+  const r = reglages.data;
+  const val = (cle: ClesReglages) => v[cle] ?? (cle === "ia_cle" || cle === "smtp_mot_de_passe" ? "" : r[cle]);
+  const active = val("ia_active") === "oui";
+
+  return (
+    <form onSubmit={(e) => { e.preventDefault(); enregistrer.mutate(); }}>
+      <div className="space-y-6">
+        <Carte className="p-5">
+          <Interrupteur libelle="Activer l'assistant IA" aide="Génère les propositions de parcours, les supports de module, les tests et les dossiers d'enjeux. Désactivé, ces boutons disparaissent de l'interface." actif={active} changer={(x) => poser({ ia_active: x ? "oui" : "non" })} />
+        </Carte>
+
+        <Carte className={cx("space-y-5 p-5 transition-opacity", !active && "opacity-60")}>
+          <div>
+            <h2 className="flex items-center gap-2 text-base font-semibold"><KeyRound className="size-4.5 text-accent" aria-hidden /> Clé d'API Anthropic</h2>
+            <p className="mt-0.5 text-[13px] text-encre-3">
+              Créez-la sur <a href="https://console.anthropic.com" target="_blank" rel="noreferrer" className="inline-flex items-center gap-0.5 font-medium text-accent underline-offset-2 hover:underline">console.anthropic.com <ExternalLink className="size-3" aria-hidden /></a>.
+              Conseil : créez une clé rattachée à un <em>workspace</em> ; sinon, renseignez l'identifiant du workspace ci-dessous.
+            </p>
+          </div>
+          {r.ia_defaut_serveur && !r.ia_cle_definie && <Alerte>Une clé du serveur sert par défaut : l'assistant fonctionne déjà. Renseignez votre propre clé pour que les coûts soient portés par votre organisme.</Alerte>}
+          <ChampSecret libelle="Clé d'API" defini={r.ia_cle_definie} valeur={v.ia_cle ?? ""} changer={(x) => poser({ ia_cle: x })} erreur={err.ia_cle} aide="Chiffrée dès l'enregistrement, jamais réaffichée." libelleEffacer="Effacer la clé" />
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Champ libelle="Identifiant de workspace (facultatif)" value={val("ia_workspace")} spellCheck={false} onChange={(e) => poser({ ia_workspace: e.target.value })} erreur={err.ia_workspace} aide="Utile si votre clé n'est pas déjà rattachée à un workspace." />
+            <Selecteur libelle="Modèle" value={val("ia_modele")} onChange={(e) => poser({ ia_modele: e.target.value })} erreur={err.ia_modele}>
+              <option value="">— Modèle recommandé par défaut —</option>
+              {r.modeles.map((m) => <option key={m.valeur} value={m.valeur}>{m.libelle}</option>)}
+            </Selecteur>
+          </div>
+          <Interrupteur libelle="Autoriser la recherche web" aide="Nécessaire pour les dossiers d'enjeux (actualité du secteur, réglementation). Coût ≈ 1 centime par recherche, en plus des jetons." actif={val("ia_recherche_web") === "oui"} changer={(x) => poser({ ia_recherche_web: x ? "oui" : "non" })} />
+        </Carte>
+
+        <Carte className="p-5">
+          <h2 className="flex items-center gap-2 text-base font-semibold"><Sparkles className="size-4.5 text-accent" aria-hidden /> Ordre de grandeur des coûts</h2>
+          <ul className="mt-2 space-y-1 text-sm text-encre-2">
+            <li>Un parcours complet proposé par l'assistant : <strong className="chiffres">≈ 0,20 – 0,50 €</strong></li>
+            <li>Un support de module : <strong className="chiffres">≈ 0,10 – 0,20 €</strong> (avec Sonnet 5)</li>
+            <li>Une recherche web : <strong className="chiffres">≈ 0,01 €</strong></li>
+          </ul>
+          <p className="mt-2 text-[13px] text-encre-3">Facturé par Anthropic sur votre compte, selon le modèle choisi. Opus coûte environ deux fois plus ; Haiku nettement moins.</p>
+        </Carte>
+      </div>
+      <BarreEnregistrer enCours={enregistrer.isPending} modifie={modifie} />
+    </form>
+  );
+}
+
+// ——— Onglet « E-mails » ———
+
+const PREREGLAGES: Array<{ cle: keyof Reglages["prereglages"]; libelle: string }> = [
+  { cle: "gmail", libelle: "Gmail / Google Workspace" },
+  { cle: "brevo", libelle: "Brevo" },
+  { cle: "ovh", libelle: "OVH" },
+  { cle: "ionos", libelle: "IONOS" },
+];
+
+function OngletEmails() {
+  const { reglages, v, poser, enregistrer, err, modifie } = useReglages();
+  const test = useMutation({ mutationFn: () => api.post<ResultatTestCourriel>("/admin/reglages/test-courriel") });
+  if (reglages.isPending) return <Chargement />;
+  if (reglages.error) return <Alerte ton="danger">{reglages.error.message}</Alerte>;
+  const r = reglages.data;
+  const val = (cle: ClesReglages) => v[cle] ?? (cle === "ia_cle" || cle === "smtp_mot_de_passe" ? "" : r[cle]);
+  const actif = val("courrier_actif") === "oui";
+  const gmail = /gmail\.com$/i.test(val("smtp_hote"));
+  const prereglageActif = PREREGLAGES.find((p) => { const x = r.prereglages[p.cle]; return x.smtp_hote === val("smtp_hote") && x.smtp_port === val("smtp_port") && x.smtp_securise === val("smtp_securise"); })?.cle;
+
+  return (
+    <form onSubmit={(e) => { e.preventDefault(); enregistrer.mutate(); }}>
+      <div className="space-y-6">
+        <Carte className="p-5">
+          <Interrupteur libelle="Envoyer réellement les e-mails" aide="Désactivé, les e-mails sont seulement consignés dans la boîte d'envoi : pratique pour tester. Activé, ils partent par le serveur ci-dessous." actif={actif} changer={(x) => poser({ courrier_actif: x ? "oui" : "non" })} />
+        </Carte>
+
+        <Carte className="space-y-5 p-5">
+          <div>
+            <h2 className="flex items-center gap-2 text-base font-semibold"><Mail className="size-4.5 text-accent" aria-hidden /> Serveur d'envoi</h2>
+            <p className="mt-0.5 text-[13px] text-encre-3">Choisissez votre fournisseur pour préremplir les réglages, ou saisissez-les vous-même.</p>
+          </div>
+          <div className="flex flex-wrap gap-2" role="group" aria-label="Préréglages">
+            {PREREGLAGES.map((p) => (
+              <Bouton key={p.cle} taille="sm" aria-pressed={prereglageActif === p.cle} className={cx(prereglageActif === p.cle && "border-accent bg-accent-doux text-accent-fort")} onClick={() => poser({ ...r.prereglages[p.cle] })}>{p.libelle}</Bouton>
+            ))}
+          </div>
+          <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_120px]">
+            <Champ libelle="Serveur (hôte)" placeholder="smtp.exemple.fr" spellCheck={false} autoComplete="off" value={val("smtp_hote")} onChange={(e) => poser({ smtp_hote: e.target.value })} erreur={err.smtp_hote} />
+            <Champ libelle="Port" inputMode="numeric" placeholder="465" className="chiffres" value={val("smtp_port")} onChange={(e) => poser({ smtp_port: e.target.value.replace(/\D/g, "").slice(0, 5) })} erreur={err.smtp_port} />
+          </div>
+          <Interrupteur libelle="Connexion sécurisée (TLS direct)" aide="Oui pour le port 465 (TLS direct) ; non pour le port 587 (STARTTLS, la sécurité est négociée ensuite)." actif={val("smtp_securise") === "oui"} changer={(x) => poser({ smtp_securise: x ? "oui" : "non" })} />
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Champ libelle="Identifiant (adresse e-mail)" type="email" autoComplete="off" spellCheck={false} placeholder="contact@exemple.fr" value={val("smtp_utilisateur")} onChange={(e) => poser({ smtp_utilisateur: e.target.value })} erreur={err.smtp_utilisateur} />
+            <Champ libelle="Adresse d'expédition" type="email" autoComplete="off" spellCheck={false} placeholder={val("smtp_utilisateur") || "Par défaut : l'identifiant"} value={val("courrier_expediteur")} onChange={(e) => poser({ courrier_expediteur: e.target.value })} erreur={err.courrier_expediteur} aide="Ce que voient vos destinataires. Laissez vide pour utiliser l'identifiant." />
+          </div>
+          <ChampSecret libelle="Mot de passe" defini={r.smtp_mot_de_passe_defini} valeur={v.smtp_mot_de_passe ?? ""} changer={(x) => poser({ smtp_mot_de_passe: x })} erreur={err.smtp_mot_de_passe} autoComplete="new-password" aide="Chiffré dès l'enregistrement, jamais réaffiché." libelleEffacer="Effacer le mot de passe" />
+          {gmail && (
+            <Alerte titre="Gmail / Google Workspace : utilisez un « mot de passe d'application »">
+              Votre mot de passe habituel ne fonctionnera pas. Pas à pas :
+              <ol className="mt-1 list-decimal space-y-0.5 pl-4">
+                <li>Ouvrez votre compte Google → <strong>Sécurité</strong>.</li>
+                <li>Activez la <strong>Validation en deux étapes</strong> si ce n'est pas déjà fait.</li>
+                <li>Cherchez <strong>Mots de passe des applications</strong>, créez-en un (nom libre, par exemple « Plateforme formation »).</li>
+                <li>Collez ici les 16 caractères obtenus, sans les espaces.</li>
+              </ol>
+            </Alerte>
+          )}
+        </Carte>
+
+        <Carte className="p-5">
+          <h2 className="flex items-center gap-2 text-base font-semibold"><Send className="size-4.5 text-accent" aria-hidden /> Vérifier que ça marche</h2>
+          <p className="mt-0.5 text-[13px] text-encre-3">Un e-mail de test part à votre adresse avec les réglages <strong>enregistrés</strong>{modifie ? " — enregistrez d'abord vos modifications" : ""}.</p>
+          <div className="mt-3"><Bouton icone={<Send className="size-4" aria-hidden />} enCours={test.isPending} disabled={modifie} onClick={() => test.mutate()}>M'envoyer un e-mail de test</Bouton></div>
+          {test.error && <div className="mt-3"><Alerte ton="danger">{test.error.message}</Alerte></div>}
+          {test.data && <div className="mt-3"><ResultatTest r={test.data} /></div>}
+        </Carte>
+      </div>
+      <BarreEnregistrer enCours={enregistrer.isPending} modifie={modifie} />
+    </form>
+  );
+}
+
+function ResultatTest({ r }: { r: ResultatTestCourriel }) {
+  if (r.statut === "envoye") return <Alerte ton="succes" titre="E-mail envoyé">Regardez la boîte de réception de {r.destinataire} (et les indésirables, la première fois).</Alerte>;
+  if (r.statut === "journalise") {
+    return (
+      <Alerte ton="attention" titre="E-mail consigné, mais pas expédié">
+        {r.actif ? "L'envoi réel est activé mais le serveur d'envoi n'est pas renseigné : indiquez au moins l'hôte, puis enregistrez." : "L'envoi réel n'est pas activé : l'e-mail est seulement visible dans la boîte d'envoi. Activez « Envoyer réellement les e-mails », enregistrez, puis relancez le test."}
+      </Alerte>
+    );
+  }
+  return (
+    <Alerte ton="danger" titre="L'envoi a échoué">
+      <p className="whitespace-pre-line">{r.erreur || "Le serveur d'envoi a refusé le message sans donner de raison."}</p>
+    </Alerte>
   );
 }

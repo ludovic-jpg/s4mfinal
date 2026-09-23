@@ -30,9 +30,9 @@ export const ESPACES_FORMATEUR: readonly Espace[] = [
   {
     cle: "pedagogique",
     titre: "Espace pédagogique",
-    description: "Vos formations, leurs programmes et supports, vos questionnaires. L'assistant IA vous propose des brouillons.",
+    description: "Vos formations, leurs programmes et supports, vos questionnaires. L'assistant IA se documente sur chaque sujet et vous propose des brouillons : vous restez l'auteur.",
     liens: [
-      { vers: "/formations", libelle: "Mes formations", icone: "formations", aide: "Programme, objectifs, coffre-fort pédagogique" },
+      { vers: "/formations", libelle: "Mes formations", icone: "formations", aide: "Enjeux, parcours, tests et supports, coffre-fort" },
       { vers: "/outils", libelle: "Outils pédagogiques", icone: "outils", aide: "Recueil des besoins, positionnement, évaluation des acquis" },
       { vers: "/coffres", libelle: "Coffre-fort pédagogique", icone: "coffre", aide: "Par parcours : supports, tests, pièces administratives" },
     ],
