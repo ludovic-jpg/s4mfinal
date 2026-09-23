@@ -8,6 +8,7 @@ import type { Questionnaire } from "@/domaine/formulaires/qcm";
 import { LIBELLE_STATUT, piecesManquantesPourCompletude, peutValider, peutVoir } from "@/domaine/pieces/statut";
 import { ETAPES, SOUS_STATUTS, estTerminal, etapeDe, libelleSousStatut, type SousStatut } from "@/domaine/pipeline/statuts";
 import { actionsPossibles } from "@/domaine/pipeline/transitions";
+import { sectionsParcours } from "@/domaine/parcours/apprenant";
 import { NOMENCLATURE, definitionPiece, type CodePiece } from "@/domaine/referentiel/pieces";
 import { dossierFormation, evaluation, evenement, formateur, modeleOutil, pieceDossier, seance, stagiaire, stagiaireDossier } from "../bd/schema";
 import { nouvelId } from "../ports/divers";
@@ -42,6 +43,8 @@ export const SchemaDossier = z
     formation_objectifs_atteints: z.string().trim().max(4000),
     formation_niveau: z.string().trim().max(100),
     formation_prerequis: z.string().trim().max(2000),
+    formation_public_vise: z.string().trim().max(2000),
+    formation_programme: z.string().trim().max(20000),
     formation_duree_heures_total: heures,
     formation_duree_jours: heures,
     formation_duree_heures_presentiel: heures,
@@ -100,6 +103,8 @@ export async function creerDossier(s: Services, acteur: Acteur, donnees: unknown
     formation_objectifs: f.formation_objectifs,
     formation_niveau: f.formation_niveau,
     formation_prerequis: f.formation_prerequis,
+    formation_public_vise: f.public_vise,
+    formation_programme: f.programme,
     formation_duree_heures_total: total,
     formation_duree_jours: f.formation_duree_jours,
     formation_duree_heures_presentiel: v.formation_modalite === "presentiel" ? total : null,
@@ -278,7 +283,21 @@ export async function lireDossier(s: Services, acteur: Acteur, id: string) {
     ),
     // Réservé au formateur et à l'admin : finances, actions de pipeline, journal.
     finances: interne ? calculer(agregat) : null,
-    actions: interne ? actionsPossibles(contexte, acteur.role) : [],
+    // Formateur et admin : toutes leurs actions. Apprenant : seulement les siennes (déclarer la demande de financement déposée).
+    actions: actionsPossibles(contexte, acteur.role),
+    // Parcours de l'apprenant, section par section (cahier des charges oral du 23/09/2026) — un par stagiaire visible.
+    parcours: liens
+      .filter((l) => interne || l.st.id === acteur.stagiaire_id)
+      .map((l) => ({
+        stagiaire_id: l.st.id,
+        sections: sectionsParcours({
+          sous_statut: statut,
+          pieces: contexte.pieces.filter((p) => p.stagiaire_id === null || p.stagiaire_id === l.st.id),
+          recueil_renseigne: toutesLesPieces.some((p) => p.code === "00-AVT" && p.stagiaire_id === l.st.id && p.statut === "valide"),
+          positionnement_renseigne: toutesLesPieces.some((p) => p.code === "01-AVT" && p.stagiaire_id === l.st.id && p.statut === "valide"),
+          positionnement_prevu: d.questionnaire_positionnement !== null,
+        }),
+      })),
     manques_soumission: interne && statut === "brouillon" ? await manquesAvantSoumission(s, d) : [],
     manques_completude: interne ? piecesManquantesPourCompletude(contexte.pieces, contexte.stagiaire_ids).map((p) => ({ ...p, libelle: definitionPiece(p.code).libelle })) : [],
     journal: interne ? await s.bd.select().from(evenement).where(eq(evenement.dossier_id, d.id)).orderBy(desc(evenement.cree_le)).limit(100) : [],

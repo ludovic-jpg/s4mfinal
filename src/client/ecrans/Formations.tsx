@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, BookOpen, Copy, Download, Eye, EyeOff, Plus, Trash2 } from "lucide-react";
 import { api, ErreurApi, euros, heuresFr, octets, type FichierCoffre, type Formation, type Outil } from "../api";
 import { Alerte, Bouton, Carte, Champ, Chargement, DepotFichier, EtatVide, Etiquette, Modale, Selecteur, TitrePage, ZoneTexte, useNotifier } from "../ui/base";
+import { BoutonIaProgramme } from "./AssistantIa";
 
 const nombre = (x: string) => (x.trim() === "" ? null : Number(x.replace(",", ".")));
 
@@ -55,7 +56,11 @@ export function FormulaireFormation({ initiale, termine }: { initiale?: Formatio
         <Champ libelle="Prix HT / stagiaire (€)" inputMode="decimal" {...champ("prix")} />
       </div>
       <Champ libelle="Public visé" {...champ("public_vise")} />
-      <ZoneTexte libelle="Programme détaillé" rows={5} {...champ("programme")} />
+      <BoutonIaProgramme
+        contexte={{ formation_titre: v.formation_titre, formation_niveau: v.formation_niveau, public_vise: v.public_vise, formation_prerequis: v.formation_prerequis, formation_duree_heures_total: nombre(v.heures) }}
+        recevoir={(p) => setV((x) => ({ ...x, formation_objectifs: p.formation_objectifs, programme: p.programme }))}
+      />
+      <ZoneTexte libelle="Programme détaillé" rows={5} aide="Annexé à la convention (pièce « Programme de formation ») : obligatoire pour soumettre un dossier." {...champ("programme")} />
       {enregistrer.error && Object.keys(err).length === 0 && <Alerte ton="danger">{enregistrer.error.message}</Alerte>}
       <Bouton type="submit" variante="primaire" enCours={enregistrer.isPending}>
         Enregistrer

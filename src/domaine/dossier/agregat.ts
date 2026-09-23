@@ -89,6 +89,9 @@ export interface DonneesFormation {
   formation_objectifs_atteints: string;
   formation_niveau: string;
   formation_prerequis: string;
+  formation_public_vise: string;
+  /** Programme détaillé, figé dans le dossier à sa création (annexe de la convention, pièce PRG). */
+  formation_programme: string;
   formation_duree_heures_total: number | null;
   formation_duree_jours: number | null;
   formation_duree_heures_presentiel: number | null;

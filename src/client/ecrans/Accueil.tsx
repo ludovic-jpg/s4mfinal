@@ -1,6 +1,8 @@
 /**
  * Accueil, selon le rôle :
- *  - formateur / admin : le pipeline « Mes dossiers » — sept colonnes, de gauche à droite (F-CRM-01, F-CRM-02) ;
+ *  - formateur : le menu principal des trois espaces (pédagogique, apprenant, formation) — CdC oral du 23/09/2026 ;
+ *  - admin : le pipeline « Tous les dossiers » — sept colonnes, de gauche à droite (F-CRM-01, F-CRM-02) ;
+ *    le formateur retrouve ce même pipeline dans « Espace formation → Mes dossiers » (`MesDossiers`) ;
  *  - apprenant : ses formations, et ce qui est attendu de lui.
  */
 import { useMemo, useState } from "react";
@@ -10,13 +12,70 @@ import { Archive, ArrowRight, CalendarDays, FolderPlus, Search, UserRound } from
 import { api, dateFr, type CarteDossier, type ListeDossiers } from "../api";
 import { useActeur } from "../session";
 import { Bouton, Chargement, cx, EtatVide, Etiquette, TitrePage } from "../ui/base";
+import { ESPACES_FORMATEUR } from "../navigation";
+import { Icone } from "./Cadre";
 
 export function Accueil() {
   const acteur = useActeur();
   const liste = useQuery({ queryKey: ["dossiers"], queryFn: () => api.get<ListeDossiers>("/dossiers") });
   if (liste.isPending) return <Chargement />;
   if (liste.error) return <p className="text-danger">{liste.error.message}</p>;
-  return acteur.role === "apprenant" ? <MesFormations liste={liste.data} prenom={acteur.nom.split(" ")[0] ?? ""} /> : <Pipeline liste={liste.data} admin={acteur.role === "admin"} />;
+  if (acteur.role === "apprenant") return <MesFormations liste={liste.data} prenom={acteur.nom.split(" ")[0] ?? ""} />;
+  // Formateur : le menu principal des trois espaces (cahier des charges oral du 23/09/2026). Admin : le pipeline.
+  if (acteur.role === "formateur") return <MenuEspaces liste={liste.data} prenom={acteur.nom.split(" ")[0] ?? ""} />;
+  return <Pipeline liste={liste.data} admin />;
+}
+
+/** « Mes dossiers » du formateur (espace formation) — et « Tous les dossiers » pour l'admin qui suivrait ce lien. */
+export function MesDossiers() {
+  const acteur = useActeur();
+  const liste = useQuery({ queryKey: ["dossiers"], queryFn: () => api.get<ListeDossiers>("/dossiers") });
+  if (liste.isPending) return <Chargement />;
+  if (liste.error) return <p className="text-danger">{liste.error.message}</p>;
+  return <Pipeline liste={liste.data} admin={acteur.role === "admin"} />;
+}
+
+const TONS_ESPACE = { pedagogique: "bg-accent-doux text-accent-fort", apprenant: "bg-attente-doux text-attente-encre", formation: "bg-papier-3 text-encre", administration: "bg-papier-3 text-encre" } as const;
+
+function MenuEspaces({ liste, prenom }: { liste: ListeDossiers; prenom: string }) {
+  const aTraiter = liste.dossiers.filter((d) => d.sous_statut === "brouillon").length;
+  const enCours = liste.dossiers.filter((d) => !d.archive).length;
+  const indicateur: Partial<Record<string, string>> = {
+    "/dossiers": enCours === 0 ? "aucun dossier en cours" : enCours === 1 ? "1 dossier en cours" : `${enCours} dossiers en cours`,
+    "/dossiers/nouveau": aTraiter > 0 ? (aTraiter === 1 ? "1 brouillon à finaliser" : `${aTraiter} brouillons à finaliser`) : "",
+  };
+  return (
+    <>
+      <TitrePage titre={`Bonjour ${prenom}`} soustitre="Trois espaces : préparez vos formations, suivez vos apprenants, instruisez vos dossiers." />
+      <div className="grid gap-4 lg:grid-cols-3">
+        {ESPACES_FORMATEUR.map((e) => (
+          <section key={e.cle} aria-label={e.titre} className="flex flex-col rounded-lg border border-trait bg-carte p-5 shadow-carte">
+            <h2 className="flex items-center gap-2.5 text-lg font-semibold">
+              <span className={cx("grid size-9 place-items-center rounded-md", TONS_ESPACE[e.cle])}>
+                <Icone cle={e.liens[0]!.icone} className="size-[18px]" />
+              </span>
+              {e.titre}
+            </h2>
+            <p className="mt-2 text-sm text-encre-2">{e.description}</p>
+            <ul className="mt-4 flex flex-1 flex-col gap-1.5">
+              {e.liens.map((l) => (
+                <li key={l.vers}>
+                  <Link to={l.vers} className="group flex items-center gap-3 rounded-md border border-trait px-3 py-2.5 transition-colors duration-150 hover:border-accent/60 hover:bg-papier-2">
+                    <Icone cle={l.icone} className="size-4 shrink-0 text-encre-3 group-hover:text-accent" />
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-sm font-medium">{l.libelle}</span>
+                      {(indicateur[l.vers] || l.aide) && <span className="block truncate text-xs text-encre-3">{indicateur[l.vers] || l.aide}</span>}
+                    </span>
+                    <ArrowRight className="size-4 shrink-0 text-encre-3 transition-transform duration-150 group-hover:translate-x-0.5" aria-hidden />
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ))}
+      </div>
+    </>
+  );
 }
 
 function Avancement({ validees, total }: { validees: number; total: number }) {

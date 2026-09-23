@@ -3,7 +3,7 @@ import { createRootRoute, createRoute, createRouter, Outlet, redirect } from "@t
 import { requeteMoi, requetes } from "./requetes";
 import { Cadre } from "./ecrans/Cadre";
 import { Connexion, Inscription, Invitation } from "./ecrans/Acces";
-import { Accueil } from "./ecrans/Accueil";
+import { Accueil, MesDossiers } from "./ecrans/Accueil";
 import { NouveauDossier } from "./ecrans/NouveauDossier";
 import { EcranDossier } from "./ecrans/Dossier";
 import { Formations, FicheFormation } from "./ecrans/Formations";
@@ -38,6 +38,7 @@ const app = createRoute({
   },
 });
 const accueil = createRoute({ getParentRoute: () => app, path: "/", component: Accueil });
+const mesDossiers = createRoute({ getParentRoute: () => app, path: "/dossiers", component: MesDossiers });
 const nouveauDossier = createRoute({ getParentRoute: () => app, path: "/dossiers/nouveau", component: NouveauDossier });
 const dossier = createRoute({ getParentRoute: () => app, path: "/dossiers/$id", component: EcranDossier });
 const formations = createRoute({ getParentRoute: () => app, path: "/formations", component: Formations });
@@ -55,7 +56,7 @@ const arbre = racine.addChildren([
   connexion,
   inscription,
   invitation,
-  app.addChildren([accueil, nouveauDossier, dossier, formations, formation, outils, repertoire, candidature, adminCandidatures, adminOrganisme, bpf, courriers, compte]),
+  app.addChildren([accueil, mesDossiers, nouveauDossier, dossier, formations, formation, outils, repertoire, candidature, adminCandidatures, adminOrganisme, bpf, courriers, compte]),
 ]);
 
 export const routeur = createRouter({ routeTree: arbre, defaultPreload: "intent", scrollRestoration: true });

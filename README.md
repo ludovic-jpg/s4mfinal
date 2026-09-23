@@ -54,6 +54,21 @@ npm run test:e2e   # parcours dans un vrai navigateur
 `npm run test:e2e` a besoin d'un Chromium : `npx playwright install chromium` (une fois), ou la variable
 `CHROMIUM_PATH` pointant vers Chrome ou Edge.
 
+## Le menu principal : trois espaces
+
+Depuis le cahier des charges oral du 23/09/2026 ([`docs/ANALYSE_23-09.md`](docs/ANALYSE_23-09.md)), l'accueil du formateur
+présente **trois espaces** :
+
+- **Espace pédagogique** : mes formations (programme, coffre-fort), outils pédagogiques. L'assistant IA y propose des brouillons ;
+- **Espace apprenant** : les fiches des apprenants et des entreprises. Chaque apprenant invité suit son parcours en cinq
+  sections : étape préliminaire, validation, demande de financement, accord, formation ;
+- **Espace formation** : le générateur de conventions, le pipeline « Mes dossiers », le BPF, la boîte d'envoi.
+
+L'IA ne sert **que** dans l'espace pédagogique : un test de garde (`tests/integration/ia-perimetre.test.ts`) fait échouer
+la CI si elle est branchée ailleurs. Conventions, pièces et montants sont produits sans IA, à l'octet près.
+
+Pour lancer, tester et mettre en ligne pas à pas : [`docs/GUIDE_LANCEMENT.md`](docs/GUIDE_LANCEMENT.md).
+
 ## Ce que fait l'application, module par module
 
 | Module du cahier des charges | Où le voir |
@@ -62,8 +77,8 @@ npm run test:e2e   # parcours dans un vrai navigateur
 | 2 · Mes formations | « Mes formations » : création, modification, duplication |
 | 3 · Outils pédagogiques | « Outils pédagogiques » (éditeur de QCM) ; coffre-fort dans la fiche de chaque formation |
 | 4 · Communication | Dans un dossier : onglets « Communication Apprenant » et « Communication avec l'OF » |
-| 5 · Création d'un dossier | « Nouveau dossier » : cinq choix, dans l'ordre imposé par le cahier des charges |
-| 6 · Pipeline « Mes dossiers » | Page d'accueil du formateur et de l'admin : sept colonnes, treize sous-statuts |
+| 5 · Création d'un dossier | Espace formation → « Générateur de conventions » : cinq onglets, dans l'ordre imposé par le cahier des charges, qu'on peut reprendre |
+| 6 · Pipeline « Mes dossiers » | Espace formation → « Mes dossiers » (formateur) ; page d'accueil de l'admin : sept colonnes, treize sous-statuts |
 | 7 · Génération et archivage | Automatique à la validation ; fichiers dans `donnees/archive/<organisme>/dossiers/<référence>/` |
 | 8 · BPF | « BPF » : agrégats par exercice, export CSV |
 | 9 · Compte et RGPD | « Mon compte » → « Supprimer mon compte » |
@@ -76,7 +91,7 @@ l'application, où l'on peut les relire tels que le destinataire les recevrait.
 ```
 src/
   domaine/     LE NOYAU MÉTIER — pur : ni base, ni réseau, ni écran. C'est ici que vivent les règles.
-    referentiel/   79 variables harmonisées, alias des anciens noms, 16 pièces
+    referentiel/   dictionnaire des variables (79 du classeur + ajouts tracés), alias, 17 pièces
     gabarits/      moteur {{variable}}, blocs répétables, contrôle statique, migration d'anciens gabarits
     dossier/       agrégat, champs calculés (en centimes), résolution des variables, formats français
     pipeline/      7 étapes, 13 sous-statuts, 13 transitions gardées par rôle
@@ -84,13 +99,15 @@ src/
     signature/     preuve de signature (tracé, lieu, horodatage, empreinte SHA-256), certificat
     formulaires/   recueil, satisfaction, QCM et correction
     bpf/           agrégation par exercice, export CSV
+    parcours/      parcours de l'apprenant en cinq sections colorées (cahier des charges oral du 23/09)
+    pedagogie/     consignes et validation stricte des propositions de l'IA (espace pédagogique seulement)
   serveur/
     bd/            schéma PostgreSQL (Drizzle), connexion PGlite / Postgres, jeu de démonstration
     ports/         archive (disque), courrier (boîte locale / SMTP), PDF (Chromium), horloge
     services/      cas d'usage : un fichier par module du cahier des charges
     http/          API Hono — mince : authentifie, appelle un service, traduit les erreurs
   client/          interface React : un écran par fichier dans ecrans/, composants dans ui/
-gabarits/          les 14 gabarits HTML des pièces, et leurs fragments communs
+gabarits/          les 15 gabarits HTML des pièces, et leurs fragments communs
 drizzle/           migrations SQL, rejouées à chaque démarrage
 tests/             intégration (vraie base en mémoire) et bout en bout (navigateur)
 ```
@@ -112,6 +129,7 @@ Copiez `.env.example` en `.env`. Tout a une valeur par défaut raisonnable pour 
 | `SMTP_URL`, `COURRIER_EXPEDITEUR` | Envoi réel des e-mails | — |
 | `CHROMIUM_PATH` | Chrome, Edge ou Chromium pour produire les PDF | détection automatique |
 | `AMORCE` | Première ouverture : `demonstration` ou `vide` (avec `ADMIN_EMAIL` et `ADMIN_MOT_DE_PASSE`) | `demonstration` |
+| `ANTHROPIC_API_KEY`, `IA_MODELE` | Assistant IA de l'espace pédagogique (facultatif) : brouillons de QCM, d'objectifs et de programme | désactivé |
 
 Sans Chromium, l'application fonctionne : les pièces sont archivées en HTML imprimable au lieu de PDF.
 Sous Windows, Edge est détecté automatiquement.
@@ -142,7 +160,7 @@ exécutée automatiquement.
 4. Pour un hébergement : un serveur Node 22 en France ou dans l'UE, `DATABASE_URL=postgres://…` vers un
    PostgreSQL managé, `NODE_ENV=production`, HTTPS devant. Les mêmes migrations s'appliquent.
 
-Avant toute mise en production, lisez [`docs/HYPOTHESES.md`](docs/HYPOTHESES.md) : quatorze choix y attendent
+Avant toute mise en production, lisez [`docs/HYPOTHESES.md`](docs/HYPOTHESES.md) : vingt-six choix y attendent
 votre validation, dont la valeur juridique de la signature et la relecture de l'authentification.
 
 ## Publier sur GitHub

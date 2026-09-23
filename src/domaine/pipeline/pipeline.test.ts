@@ -43,7 +43,7 @@ describe("parcours nominal, de Brouillon à Archivé", () => {
     const etapes: Array<[Action, Acteur, SousStatut, string[]]> = [
       ["soumettre_validation", "formateur", "en_cours_validation", ["NOTIFIER_ADMIN_DEMANDE_VALIDATION"]],
       ["valider_dossier", "admin", "dossier_valide", ["GENERER_PIECES_DE_DEPART", "EMAIL_ENTREPRISE_PIECES_FINANCEMENT"]],
-      ["declarer_depot", "formateur", "dossier_depose", []],
+      ["declarer_depot", "apprenant", "dossier_depose", ["NOTIFIER_DEPOT_DECLARE"]],
       ["enregistrer_accord", "systeme", "accord_financement", ["GENERER_ET_ENVOYER_ODM", "OUVRIR_COFFRE_AUX_APPRENANTS"]],
       ["envoyer_elements_pedagogiques", "formateur", "envoi_elements_pedagogiques", ["GENERER_CONVOCATIONS", "EMAIL_APPRENANTS_ELEMENTS_PEDAGOGIQUES"]],
       ["demarrer_formation", "formateur", "formation_debutee", ["GENERER_PIECES_DE_REALISATION"]],
@@ -122,10 +122,15 @@ describe("cloisonnement par rôle (correctif de l'audit du 01/09/2026)", () => {
     }
   });
 
-  it("n'accorde aucune transition à l'apprenant", () => {
-    for (const action of Object.keys(REGLES) as Action[]) {
-      const de = REGLES[action].de[0]!;
-      expect(transiter(contexte(de, ["*"]), action, "apprenant", { motif: "x" }).ok, action).toBe(false);
+  it("n'accorde à l'apprenant qu'une transition : affirmer avoir déposé sa demande de financement (CdC oral 23/09)", () => {
+    const permises = (Object.keys(REGLES) as Action[]).filter((action) => transiter(contexte(REGLES[action].de[0]!, ["*"]), action, "apprenant", { motif: "x" }).ok);
+    expect(permises).toEqual(["declarer_depot"]);
+  });
+
+  it("refuse de déclarer la demande de financement déposée tant que la convention n'est pas signée", () => {
+    for (const acteur of ["apprenant", "formateur", "admin"] as const) {
+      expect(transiter(contexte("dossier_valide", ["PRE"]), "declarer_depot", acteur), acteur).toMatchObject({ ok: false, code: "garde", motif: expect.stringContaining("convention") });
+      expect(transiter(contexte("dossier_valide", ["02-AVT"]), "declarer_depot", acteur), acteur).toMatchObject({ ok: true, vers: "dossier_depose" });
     }
   });
 
@@ -146,7 +151,7 @@ describe("pièces attendues et visibilité", () => {
   it("fait apparaître les pièces au fil du pipeline", () => {
     const codes = (s: SousStatut) => [...new Set(piecesAttendues(s, STAGIAIRES).map((p) => p.code))];
     expect(codes("brouillon")).toEqual(["00-AVT", "01-AVT"]);
-    expect(codes("dossier_valide")).toEqual(["00-AVT", "01-AVT", "PRE", "02-AVT", "03-AVT", "ACC"]);
+    expect(codes("dossier_valide")).toEqual(["00-AVT", "01-AVT", "PRE", "02-AVT", "03-AVT", "PRG", "ACC"]);
     expect(codes("accord_financement")).toContain("04-AVT");
     expect(codes("accord_financement")).toContain("05-AVT");
     expect(codes("dossier_depose")).not.toContain("04-AVT");
@@ -167,7 +172,7 @@ describe("pièces attendues et visibilité", () => {
     expect(peutVoir({ code: "02-AVT", stagiaire_id: null }, moi)).toBe(true);
     for (const code of ["04-AVT", "10-FIN", "11-FIN", "00-AVT"] as const) expect(peutVoir({ code, stagiaire_id: null }, moi), code).toBe(false);
     const vue = vueEspace("apprenant", contexte("archive").pieces, moi).map((x) => x.def.ordre);
-    expect(vue).toEqual(["1", "2", "2 bis", "3", "4", "5", "6", "7"]);
+    expect(vue).toEqual(["1", "2", "2 bis", "2 ter", "3", "4", "5", "6", "7"]);
     expect(vueEspace("of", contexte("archive").pieces, moi)).toEqual([]);
     expect(vueEspace("of", contexte("archive").pieces, { role: "formateur" }).map((x) => x.def.code)).toEqual(["04-AVT", "10-FIN", "11-FIN"]);
   });

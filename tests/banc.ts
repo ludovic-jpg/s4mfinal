@@ -12,14 +12,15 @@ import { HorlogeFixe } from "@/serveur/ports/divers";
 import { sansPdf } from "@/serveur/ports/pdf";
 import { construireActeur, reinitialiserAntiForceBrute } from "@/serveur/services/auth";
 import type { Acteur, Services } from "@/serveur/services/socle";
+import type { AssistantPedagogique } from "@/serveur/ports/ia";
 
 export const MDP = "mot-de-passe-solide";
 
-export async function creerBanc() {
+export async function creerBanc(options: { ia?: AssistantPedagogique } = {}) {
   const { bd, fermer } = await ouvrirBase("memoire");
   const archive = new ArchiveMemoire();
   const horloge = new HorlogeFixe(new Date("2026-10-01T08:00:00.000Z"));
-  const s: Services = { bd, archive, courrier: new CourrierJournalise(bd, archive), pdf: sansPdf, horloge, appUrl: "http://localhost:5173" };
+  const s: Services = { bd, archive, courrier: new CourrierJournalise(bd, archive), pdf: sansPdf, horloge, appUrl: "http://localhost:5173", ...(options.ia ? { ia: options.ia } : {}) };
   reinitialiserAntiForceBrute();
 
   const of_id = await creerOrganisme(s, { id: "of-demo" });
@@ -50,3 +51,17 @@ export async function creerBanc() {
 export type Banc = Awaited<ReturnType<typeof creerBanc>>;
 
 export const fichier = (nom: string, contenu = "contenu de test") => ({ nom, type_mime: "application/octet-stream", contenu: Buffer.from(contenu) });
+
+/** Assistant IA de test : rejoue des réponses écrites d'avance et garde trace des demandes reçues. */
+export function iaFactice(reponses: string[]): AssistantPedagogique & { demandes: string[] } {
+  const demandes: string[] = [];
+  return {
+    disponible: true,
+    demandes,
+    rediger: (_systeme: string, demande: string) => {
+      demandes.push(demande);
+      const r = reponses.shift();
+      return r === undefined ? Promise.reject(new Error("Plus de réponse prévue.")) : Promise.resolve(r);
+    },
+  };
+}

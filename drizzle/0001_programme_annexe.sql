@@ -1,0 +1,2 @@
+ALTER TABLE "dossier_formation" ADD COLUMN "formation_public_vise" text DEFAULT '' NOT NULL;--> statement-breakpoint
+ALTER TABLE "dossier_formation" ADD COLUMN "formation_programme" text DEFAULT '' NOT NULL;

@@ -31,6 +31,7 @@ export type Action =
 export type Effet =
   | "NOTIFIER_ADMIN_DEMANDE_VALIDATION"
   | "NOTIFIER_FORMATEUR_RENVOI"
+  | "NOTIFIER_DEPOT_DECLARE" // le formateur et l'OF sont prévenus que la demande est partie chez le financeur
   | "GENERER_PIECES_DE_DEPART" // F-ARCH-01, RG-04
   | "EMAIL_ENTREPRISE_PIECES_FINANCEMENT" // F-DOS-06, RG-04
   | "GENERER_ET_ENVOYER_ODM" // F-OF-02, RG-06
@@ -102,9 +103,13 @@ export const REGLES: Record<Action, Regle> = {
   declarer_depot: {
     de: ["dossier_valide"],
     vers: "dossier_depose",
-    acteurs: ["formateur", "admin"],
-    libelle: "Déclarer le dossier déposé auprès du financeur",
-    effets: [],
+    // Cahier des charges oral du 23/09/2026 : c'est d'abord l'apprenant qui, depuis son espace, affirme avoir
+    // déposé la demande auprès de son financeur. Le formateur et l'OF gardent la main (dépôt fait par l'entreprise).
+    acteurs: ["apprenant", "formateur", "admin"],
+    libelle: "Déclarer la demande de financement déposée auprès du financeur",
+    // On ne dépose pas une demande de financement sans convention signée.
+    garde: (c) => (estValide(c, "02-AVT") ? null : "La convention de formation doit être signée avant de déclarer la demande déposée."),
+    effets: ["NOTIFIER_DEPOT_DECLARE"],
   },
   enregistrer_accord: {
     de: ["dossier_valide", "dossier_depose"],

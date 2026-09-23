@@ -13,6 +13,7 @@ import { ArchiveLocale } from "./ports/archive";
 import { CourrierJournalise, creerTransportSmtp } from "./ports/courrier";
 import { horlogeSysteme } from "./ports/divers";
 import { ConvertisseurChromium } from "./ports/pdf";
+import { creerAssistant } from "./ports/ia";
 import { envoyerSatisfactionsAFroid } from "./services/taches";
 import type { Services } from "./services/socle";
 
@@ -24,7 +25,7 @@ const expedition = config.COURRIER_MODE === "smtp" && config.SMTP_URL ? { transp
 const dist = resolve("dist");
 const interfaceCompilee = existsSync(join(dist, "index.html"));
 const appUrl = config.APP_URL || (interfaceCompilee ? `http://localhost:${config.PORT}` : "http://localhost:5173");
-const s: Services = { bd, archive, courrier: new CourrierJournalise(bd, archive, expedition), pdf, horloge: horlogeSysteme, appUrl };
+const s: Services = { bd, archive, courrier: new CourrierJournalise(bd, archive, expedition), pdf, horloge: horlogeSysteme, appUrl, ia: creerAssistant(config.ANTHROPIC_API_KEY, config.IA_MODELE) };
 
 // Première ouverture : la base est vide. Soit un jeu de démonstration (données fictives), soit un organisme
 // vierge à configurer et son premier administrateur (AMORCE=vide).
@@ -56,7 +57,7 @@ const minuterie = setInterval(tacheQuotidienne, 24 * 3600 * 1000);
 const serveur = serve({ fetch: app.fetch, port: config.PORT }, (info) => {
   console.log(`[s4m] ${interfaceCompilee ? "application" : "API"} prête sur http://localhost:${info.port}${interfaceCompilee ? "" : " — interface : npm run dev:web"}`);
   console.log(`[s4m] base : ${config.DATABASE_URL} · archive : ${config.ARCHIVE_DIR}`);
-  console.log(`[s4m] courrier : ${expedition ? "SMTP" : "boîte locale (rien ne part)"} · PDF : ${pdf.disponible ? "Chromium trouvé" : "indisponible — pièces archivées en HTML"}`);
+  console.log(`[s4m] courrier : ${expedition ? "SMTP" : "boîte locale (rien ne part)"} · PDF : ${pdf.disponible ? "Chromium trouvé" : "indisponible — pièces archivées en HTML"} · IA pédagogique : ${s.ia?.disponible ? `activée (${config.IA_MODELE})` : "désactivée"}`);
 });
 
 const arreter = async () => {

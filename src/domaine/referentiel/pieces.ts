@@ -6,7 +6,9 @@
  *  - `PRE` : le « Pré-dossier » de l'espace Communication avec l'Apprenant (hypothèse par défaut :
  *    synthèse Recueil des besoins + Test de positionnement, signée une fois) ;
  *  - `ACC` : l'Accord de financement, document externe émis par l'OPCO/FAF (F-COM-10, RG-06) ;
- *  - `REF` : le justificatif d'un Refus de financement (F-CRM-07, RG-07).
+ *  - `REF` : le justificatif d'un Refus de financement (F-CRM-07, RG-07) ;
+ *  - `PRG` : le Programme de formation, annexe de la convention (article 1.2 et 3 de la convention :
+ *    « le programme détaillé figure en annexe ») — ajouté le 23/09/2026, voir docs/ANALYSE_23-09.md.
  */
 import type { SousStatut } from "../pipeline/statuts";
 
@@ -30,7 +32,8 @@ export type CodePiece =
   | "12-APR"
   | "PRE"
   | "ACC"
-  | "REF";
+  | "REF"
+  | "PRG";
 
 export interface PieceDef {
   code: CodePiece;
@@ -165,6 +168,24 @@ export const NOMENCLATURE: readonly PieceDef[] = [
     mode: "generee",
     espace: "apprenant",
     ordre: "2 bis",
+    suiviStatut: false,
+    valideePar: [],
+    disponibleDes: "dossier_valide",
+    requisePourCompletude: false,
+    pieceDeDepart: true,
+  }),
+  p({
+    code: "PRG",
+    fichier: "03a_AVT_Programme-Formation",
+    phase: "AVT",
+    libelle: "Programme de formation",
+    roleQualiopi: "Programme détaillé de l'action, annexé à la convention : objectifs, public, prérequis, contenu, modalités.",
+    indicateurs: [1, 5],
+    signataires: "—",
+    mode: "generee",
+    espace: "apprenant",
+    ordre: "2 ter",
+    // Comme le planning : pièce transmise en annexe de la convention, sans statut de signature (F-COM-03bis).
     suiviStatut: false,
     valideePar: [],
     disponibleDes: "dossier_valide",

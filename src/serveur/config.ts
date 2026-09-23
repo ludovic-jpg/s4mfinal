@@ -16,6 +16,9 @@ const Schema = z.object({
   COURRIER_EXPEDITEUR: z.string().default(""),
   SMTP_URL: z.string().default(""),
   CHROMIUM_PATH: z.string().default(""),
+  /** Assistant IA de l'espace pédagogique (facultatif) : les deux doivent être renseignés pour l'activer. */
+  ANTHROPIC_API_KEY: z.string().default(""),
+  IA_MODELE: z.string().default(""),
 });
 
 export type Config = z.infer<typeof Schema>;

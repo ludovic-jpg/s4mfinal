@@ -28,8 +28,20 @@ test("une URL protégée renvoie à la connexion ; un mauvais mot de passe est r
   await expect(page.getByRole("alert")).toContainText("incorrect");
 });
 
-test("formatrice : le pipeline montre les sept étapes, puis un dossier se crée en cinq choix", async ({ page }) => {
+test("formatrice : le menu principal présente les trois espaces (CdC oral du 23/09/2026)", async ({ page }) => {
   await connecter(page, "formatrice@demo.example");
+  for (const espace of ["Espace pédagogique", "Espace apprenant", "Espace formation"]) {
+    await expect(page.getByRole("main").getByRole("region", { name: espace })).toBeVisible();
+    await expect(page.getByRole("navigation").getByRole("group", { name: espace })).toBeVisible();
+  }
+  await expect(page.getByRole("region", { name: "Espace formation" }).getByRole("link", { name: /Générateur de conventions/ })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Espace pédagogique" }).getByRole("link", { name: /Outils pédagogiques/ })).toBeVisible();
+});
+
+test("formatrice : le pipeline montre les sept étapes, puis un dossier se crée en cinq onglets", async ({ page }) => {
+  await connecter(page, "formatrice@demo.example");
+  await page.getByRole("main").getByRole("link", { name: /Mes dossiers/ }).click();
+  await page.waitForURL("/dossiers");
   for (const etape of ["Création du dossier Formation", "Demande de financement", "Début de la Formation", "Fin de la Formation", "Demande de paiement", "Paiement réceptionné", "Formateur payé / Dossier archivé"]) {
     await expect(page.getByRole("region", { name: etape })).toBeVisible();
   }
@@ -37,9 +49,14 @@ test("formatrice : le pipeline montre les sept étapes, puis un dossier se crée
   await page.getByRole("button", { name: "Nouveau dossier" }).click();
   await page.getByRole("button", { name: /Léa Schmitt/ }).click();
   await page.getByRole("button", { name: /Continuer/ }).click();
-  await expect(page.getByRole("button", { name: /Menuiserie Dupont/ })).toHaveAttribute("aria-pressed", "true"); // entreprise de l'apprenante proposée d'office
+  await expect(page.getByRole("button", { name: /^Menuiserie Dupont/ })).toHaveAttribute("aria-pressed", "true"); // entreprise de l'apprenante proposée d'office
   await page.getByRole("button", { name: /Continuer/ }).click();
   await page.getByRole("button", { name: /Excel — tableaux croisés/ }).click();
+  // « Possibilité de les reprendre » : on revient sur l'onglet Apprenant(s) sans rien perdre, puis on repart.
+  await page.getByRole("button", { name: "Apprenant(s)" }).click();
+  await expect(page.getByRole("button", { name: /^Léa Schmitt/ })).toHaveAttribute("aria-pressed", "true");
+  await page.getByRole("button", { name: "Formation", exact: true }).click();
+  await expect(page.getByRole("button", { name: /Excel — tableaux croisés/ })).toHaveAttribute("aria-pressed", "true");
   await page.getByRole("button", { name: /Continuer/ }).click();
   await page.getByRole("button", { name: /Continuer/ }).click();
   await page.getByRole("button", { name: "Créer le dossier" }).click();
@@ -66,7 +83,7 @@ test("apprenante : signe un document en ligne, et le statut passe à « Validé 
   await expect(valider).toBeDisabled(); // ni tracé, ni lieu, ni consentement
   await tracerUneSignature(page);
   await page.getByLabel("Fait à").fill("Mulhouse");
-  await page.getByRole("checkbox").check();
+  await page.locator("dialog").getByRole("checkbox").check();
   await valider.click();
 
   const apres = page.getByRole("listitem").filter({ hasText: libelle }).first();
@@ -77,6 +94,45 @@ test("apprenante : signe un document en ligne, et le statut passe à « Validé 
   await expect(page.getByText("Net reversé au formateur")).toHaveCount(0);
 });
 
+test("apprenante : affirme avoir déposé sa demande de financement ; la section change de couleur et l'Accord apparaît", async ({ page }) => {
+  await connecter(page, "apprenante@demo.example");
+  await page.locator("main a[href^='/dossiers/']").first().waitFor();
+  const liens = await page.locator("main a[href^='/dossiers/']").evaluateAll((as) => as.map((a) => a.getAttribute("href")!));
+  const financement = page.getByRole("region", { name: "Demande de financement" });
+  let trouve = false;
+  for (const href of liens) {
+    await page.goto(href);
+    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+    if ((await financement.getAttribute("data-etat")) === "a_faire") {
+      trouve = true;
+      break;
+    }
+  }
+  expect(trouve, "un dossier validé attend la déclaration de dépôt").toBe(true);
+  // Étape préliminaire close, validation faite : la page commence bien par le recueil et le positionnement.
+  await expect(page.getByRole("region", { name: /Étape préliminaire/ })).toHaveAttribute("data-etat", "termine");
+  await expect(financement.getByText("Programme de formation")).toBeVisible();
+  await expect(page.getByRole("region", { name: "Accord de financement" })).toHaveCount(0);
+
+  // La convention doit être signée avant de pouvoir déclarer le dépôt.
+  const convention = financement.getByRole("listitem").filter({ hasText: "Convention de formation" });
+  if ((await convention.getByRole("button", { name: "Signer" }).count()) > 0) {
+    await convention.getByRole("button", { name: "Signer" }).click();
+    await tracerUneSignature(page);
+    await page.getByLabel("Fait à").fill("Mulhouse");
+    await page.locator("dialog").getByRole("checkbox").check();
+    await page.getByRole("button", { name: "Signer le document" }).click();
+    await expect(convention.getByText("Validé", { exact: true })).toBeVisible();
+  }
+
+  await financement.getByRole("checkbox").check();
+  await financement.getByRole("button", { name: "Confirmer le dépôt de ma demande" }).click();
+  await expect(financement).toHaveAttribute("data-etat", "termine");
+  const accord = page.getByRole("region", { name: "Accord de financement" });
+  await expect(accord).toBeVisible();
+  await expect(accord.getByText("Accord de financement").first()).toBeVisible();
+});
+
 test("admin : valide un dossier ; les pièces sont générées et l'e-mail à l'entreprise est consigné", async ({ page }) => {
   await connecter(page, "admin@demo.example");
   await page.getByRole("link", { name: /En cours de validation/ }).first().click();
@@ -85,7 +141,8 @@ test("admin : valide un dossier ; les pièces sont générées et l'e-mail à l'
 
   await page.getByRole("tab", { name: /Communication Apprenant/ }).click();
   await expect(page.getByText("Convention de formation")).toBeVisible();
-  await expect(page.getByText("Transmis")).toBeVisible(); // planning : transmis, sans statut de signature
+  await expect(page.getByText("Transmis")).toHaveCount(2); // planning et programme : transmis, sans statut de signature
+  await expect(page.getByText("Programme de formation")).toBeVisible();
 
   await page.getByRole("link", { name: "Boîte d'envoi" }).click();
   await expect(page.getByText("Pièces du financement").first()).toBeVisible();
@@ -98,7 +155,8 @@ test("mobile : aucun défilement horizontal de la page, menu en tiroir", async (
     await connecter(page, "formatrice@demo.example");
     await page.waitForLoadState("networkidle");
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), `largeur ${largeur}`).toBe(true);
-    await page.locator("a[href^='/dossiers/']").first().click();
+    await page.goto("/dossiers");
+    await page.locator("main a[href^='/dossiers/']:not([href='/dossiers/nouveau'])").first().click();
     await page.waitForLoadState("networkidle");
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), `dossier, largeur ${largeur}`).toBe(true);
     await contexte.close();

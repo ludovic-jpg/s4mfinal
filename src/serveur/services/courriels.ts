@@ -62,6 +62,14 @@ export const courriels = {
     corps_html: habiller(a.of_nom, `Bonjour ${a.prenom},`, [`Le dossier <strong>${e(a.reference)}</strong> vous est renvoyé pour correction.`, `Motif : ${e(a.motif)}`], { libelle: "Corriger le dossier", url: a.lien }),
   }),
 
+  depotDeclare: (a: { of_nom: string; prenom: string; reference: string; formation: string; par: string; lien: string }): Courriel => ({
+    sujet: `Dossier ${a.reference} — demande de financement déposée`,
+    corps_html: habiller(a.of_nom, `Bonjour ${a.prenom},`, [
+      `${e(a.par)} déclare avoir déposé la demande de prise en charge du dossier <strong>${e(a.reference)}</strong> — ${e(a.formation)} — auprès du financeur.`,
+      "Dès réception de l'accord, déposez-le sur le dossier : l'ordre de mission partira automatiquement.",
+    ], { libelle: "Ouvrir le dossier", url: a.lien }),
+  }),
+
   piecesFinancementEntreprise: (a: { of_nom: string; representant: string; formation: string; stagiaires: string; reference: string; pieces: string[] }): Courriel => ({
     sujet: `Votre demande de financement — ${a.formation}`,
     corps_html: habiller(a.of_nom, `Bonjour ${a.representant},`, [

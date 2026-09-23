@@ -66,6 +66,8 @@ export function dossierDeDemonstration(): AgregatDossier {
       formation_objectifs_atteints: "",
       formation_niveau: "Intermédiaire",
       formation_prerequis: "Maîtriser les fonctions de base d'Excel (saisie, mise en forme, formules simples).",
+      formation_public_vise: "Assistants et gestionnaires administratifs.",
+      formation_programme: "Jour 1 — Tableaux croisés dynamiques : construction, filtres, segments.\nJour 2 — Automatisation : requêtes, macros simples, contrôle des données.",
       formation_duree_heures_total: 14,
       formation_duree_jours: 2,
       formation_duree_heures_presentiel: 14,

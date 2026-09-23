@@ -1,6 +1,8 @@
 /**
- * Création d'un dossier — F-DOS-02 impose l'ordre : l'apprenant, son entreprise, la formation, la modalité,
- * le financement. Cinq étapes courtes plutôt qu'un formulaire de 900 lignes (irritant relevé par l'audit de l'ancien outil).
+ * Générateur de conventions (espace formation) — F-DOS-02 impose l'ordre : l'apprenant, son entreprise, la formation,
+ * la modalité, le financement. Cinq onglets courts plutôt qu'un formulaire de 900 lignes.
+ * Cahier des charges oral du 23/09/2026 : les onglets sont pré-remplis quand la fiche existe, et on peut les
+ * « reprendre » — revenir sur un onglet déjà rempli, ou corriger la fiche de l'apprenant ou de l'entreprise sur place.
  * Les fiches manquantes se créent sur place, sans quitter le parcours.
  */
 import { useState } from "react";
@@ -49,6 +51,7 @@ export function NouveauDossier() {
   const requetes = useQueryClient();
   const [etape, setEtape] = useState(0);
   const [creation, setCreation] = useState<"stagiaire" | "entreprise" | "formation" | null>(null);
+  const [edition, setEdition] = useState<{ type: "stagiaire"; fiche: Stagiaire } | { type: "entreprise"; fiche: Entreprise } | null>(null);
   const [v, setV] = useState({ stagiaire_ids: [] as string[], entreprise_id: "", formation_id: "", formation_modalite: "presentiel", mode_financement: "opco" });
 
   const stagiaires = useQuery({ queryKey: ["stagiaires"], queryFn: () => api.get<Stagiaire[]>("/stagiaires") });
@@ -63,7 +66,15 @@ export function NouveauDossier() {
   });
 
   if (stagiaires.isPending || entreprises.isPending || formations.isPending) return <Chargement />;
-  const pret = [v.stagiaire_ids.length > 0, v.entreprise_id !== "", v.formation_id !== "", true, true][etape];
+  const remplis = [v.stagiaire_ids.length > 0, v.entreprise_id !== "", v.formation_id !== "", true, true];
+  const pret = remplis[etape];
+  // Un onglet est accessible si tous ceux qui le précèdent sont remplis : on peut donc « reprendre » n'importe lequel.
+  const accessible = (i: number) => remplis.slice(0, i).every(Boolean);
+  const selection = {
+    stagiaires: (stagiaires.data ?? []).filter((s) => v.stagiaire_ids.includes(s.id)),
+    entreprise: entreprises.data?.find((e) => e.id === v.entreprise_id),
+    formation: formations.data?.find((f) => f.id === v.formation_id),
+  };
 
   const basculer = (id: string) => {
     const dedans = v.stagiaire_ids.includes(id);
@@ -75,13 +86,15 @@ export function NouveauDossier() {
 
   return (
     <div className="mx-auto max-w-2xl">
-      <TitrePage titre="Nouveau dossier de formation" soustitre="Cinq choix, puis le dossier s'ouvre pré-rempli : vous n'aurez plus qu'à préciser les dates et le planning." />
+      <TitrePage titre="Générateur de conventions" soustitre="Cinq onglets, puis le dossier s'ouvre pré-rempli : vous n'aurez plus qu'à préciser les dates et le planning. La convention est générée à la validation par l'organisme." />
 
-      <ol className="mb-6 grid grid-cols-5 gap-1.5" aria-label="Étapes">
+      <ol className="mb-6 grid grid-cols-5 gap-1.5" aria-label="Onglets du générateur">
         {ETAPES.map((e, i) => (
           <li key={e} aria-current={i === etape ? "step" : undefined}>
-            <span className={cx("block h-1.5 rounded-full", i < etape ? "bg-valide" : i === etape ? "bg-attente" : "bg-papier-3")} />
-            <span className={cx("mt-1.5 block truncate text-[11px] font-medium", i === etape ? "text-encre" : "text-encre-3")}>{e}</span>
+            <button type="button" disabled={!accessible(i)} onClick={() => setEtape(i)} className="block w-full text-left disabled:cursor-not-allowed">
+              <span className={cx("block h-1.5 rounded-full", i === etape ? "bg-attente" : i < etape || (remplis[i] && accessible(i) && i < 3) ? "bg-valide" : "bg-papier-3")} />
+              <span className={cx("mt-1.5 block truncate text-[11px] font-medium", i === etape ? "text-encre" : accessible(i) ? "text-encre-2 hover:text-encre" : "text-encre-3")}>{e}</span>
+            </button>
           </li>
         ))}
       </ol>
@@ -90,11 +103,29 @@ export function NouveauDossier() {
         {etape === 0 && (
           <Etape titre="Qui suit la formation ?" aide="De 1 à 8 apprenants. Une fiche se réutilise d'un dossier à l'autre." creer={() => setCreation("stagiaire")} libelleCreer="Nouvelle fiche apprenant">
             {stagiaires.data?.map((s) => <Choix key={s.id} multiple actif={v.stagiaire_ids.includes(s.id)} titre={`${s.stagiaire_prenom} ${s.stagiaire_nom}`} detail={[s.stagiaire_poste, s.stagiaire_email].filter(Boolean).join(" · ")} onClick={() => basculer(s.id)} />)}
+            {selection.stagiaires.length > 0 && (
+              <p className="flex flex-wrap items-center gap-x-2 gap-y-1 pt-1 text-[13px] text-encre-2">
+                Reprendre une fiche :
+                {selection.stagiaires.map((s) => (
+                  <button key={s.id} type="button" aria-label={`Reprendre la fiche de ${s.stagiaire_prenom} ${s.stagiaire_nom}`} className="font-medium text-accent underline-offset-2 hover:underline" onClick={() => setEdition({ type: "stagiaire", fiche: s })}>
+                    {s.stagiaire_prenom} {s.stagiaire_nom}
+                  </button>
+                ))}
+              </p>
+            )}
           </Etape>
         )}
         {etape === 1 && (
           <Etape titre="Quelle entreprise commande la formation ?" aide="Elle signera la convention et recevra les pièces du financement." creer={() => setCreation("entreprise")} libelleCreer="Nouvelle entreprise">
             {entreprises.data?.map((e) => <Choix key={e.id} actif={v.entreprise_id === e.id} titre={e.entreprise_nom} detail={[e.entreprise_adresse, e.entreprise_siret && `SIRET ${e.entreprise_siret}`].filter(Boolean).join(" · ")} onClick={() => setV({ ...v, entreprise_id: e.id })} />)}
+            {selection.entreprise && (
+              <p className="pt-1 text-[13px] text-encre-2">
+                <button type="button" className="font-medium text-accent underline-offset-2 hover:underline" onClick={() => setEdition({ type: "entreprise", fiche: selection.entreprise! })}>
+                  Reprendre la fiche de {selection.entreprise.entreprise_nom}
+                </button>{" "}
+                (SIRET, représentant, e-mail : ils figureront sur la convention).
+              </p>
+            )}
           </Etape>
         )}
         {etape === 2 && (
@@ -110,6 +141,16 @@ export function NouveauDossier() {
         {etape === 4 && (
           <Etape titre="Qui la finance ?">
             {FINANCEMENTS.map((m) => <Choix key={m.cle} actif={v.mode_financement === m.cle} titre={m.titre} detail={m.detail} onClick={() => setV({ ...v, mode_financement: m.cle })} />)}
+            <dl className="mt-4 grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-1.5 rounded-md border border-trait bg-papier-2 p-4 text-sm">
+              <dt className="text-encre-3">Apprenant(s)</dt>
+              <dd className="truncate">{selection.stagiaires.map((s) => `${s.stagiaire_prenom} ${s.stagiaire_nom}`).join(", ")}</dd>
+              <dt className="text-encre-3">Entreprise</dt>
+              <dd className="truncate">{selection.entreprise?.entreprise_nom}</dd>
+              <dt className="text-encre-3">Formation</dt>
+              <dd className="truncate">{selection.formation?.formation_titre}</dd>
+              <dt className="text-encre-3">Modalité</dt>
+              <dd>{MODALITES.find((m) => m.cle === v.formation_modalite)?.titre}</dd>
+            </dl>
           </Etape>
         )}
 
@@ -131,6 +172,12 @@ export function NouveauDossier() {
         </div>
       </Carte>
 
+      <Modale ouverte={edition?.type === "stagiaire"} fermer={() => setEdition(null)} titre="Reprendre la fiche apprenant">
+        {edition?.type === "stagiaire" && <FormulaireStagiaire initiale={edition.fiche} entreprises={entreprises.data ?? []} termine={() => setEdition(null)} />}
+      </Modale>
+      <Modale ouverte={edition?.type === "entreprise"} fermer={() => setEdition(null)} titre="Reprendre la fiche entreprise">
+        {edition?.type === "entreprise" && <FormulaireEntreprise initiale={edition.fiche} termine={() => setEdition(null)} />}
+      </Modale>
       <Modale ouverte={creation === "stagiaire"} fermer={() => setCreation(null)} titre="Nouvelle fiche apprenant">
         <FormulaireStagiaire entreprises={entreprises.data ?? []} termine={(s) => { setCreation(null); if (s) basculer(s.id); }} />
       </Modale>

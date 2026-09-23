@@ -53,6 +53,7 @@ describe("Modules 2 et 3 — formations, outils, coffre-fort", () => {
       formation_objectifs: "Construire des TCD.\nAutomatiser un reporting.",
       formation_niveau: "Intermédiaire",
       formation_prerequis: "Bases d'Excel",
+      programme: "Jour 1 — Tableaux croisés dynamiques.\nJour 2 — Automatisation du reporting.",
       formation_duree_heures_total: 14,
       formation_duree_jours: 2,
       formation_prix_unitaire_ht: 98_000,
@@ -161,7 +162,12 @@ describe("Étapes A et B — validation, financement", () => {
       "01_AVT_Test-Positionnement_Luc-Petit.html",
       "02_AVT_Convention-Formation.html",
       "03_AVT_Planning.html",
+      "03a_AVT_Programme-Formation.html",
     ]);
+    // Annexe exigée par la convention elle-même (« le programme détaillé figure en annexe »).
+    const programme = (await b.archive.lire(depart.find((c) => c.includes("Programme"))!)).toString();
+    expect(programme).toContain("Jour 1 — Tableaux croisés dynamiques.");
+    expect(programme).not.toMatch(/\{\{|<!--\s*(si|repeter|zone)/);
     const convention = (await b.archive.lire(depart.find((c) => c.includes("Convention"))!)).toString();
     expect(convention).toContain("ORGANISME DÉMO FORMATION");
     expect(convention).toContain("Anne Martin");
@@ -170,12 +176,12 @@ describe("Étapes A et B — validation, financement", () => {
 
     const mail = (await b.courriers()).at(-1)!;
     expect(mail).toMatchObject({ type: "pieces_financement", destinataire: "jean.dupont@dupont.example" });
-    expect((mail.pieces_jointes as Array<{ nom: string }>).map((p) => p.nom)).toEqual(expect.arrayContaining(["02_AVT_Convention-Formation.html", "03_AVT_Planning.html"]));
+    expect((mail.pieces_jointes as Array<{ nom: string }>).map((p) => p.nom)).toEqual(expect.arrayContaining(["02_AVT_Convention-Formation.html", "03_AVT_Planning.html", "03a_AVT_Programme-Formation.html"]));
   });
 
   it("6.4.2 : l'apprenant voit SON espace — 5 pièces à ce stade, ni l'ODM ni celles de Luc", async () => {
     const d = await lireDossier(b.s, anne, dossierId);
-    expect(d.pieces.map((p) => `${p.ordre} ${p.libelle}`)).toEqual(["1 Pré-dossier", "2 Convention de formation", "2 bis Planning", "3 Accord de financement"]);
+    expect(d.pieces.map((p) => `${p.ordre} ${p.libelle}`)).toEqual(["1 Pré-dossier", "2 Convention de formation", "2 bis Planning", "2 ter Programme de formation", "3 Accord de financement"]);
     expect(d.pieces.every((p) => p.stagiaire_id === null || p.stagiaire_id === ids.anne)).toBe(true);
     expect(d.stagiaires.map((st) => st.prenom)).toEqual(["Anne"]);
     expect(d.finances).toBeNull();

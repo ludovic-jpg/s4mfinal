@@ -195,6 +195,21 @@ export function EspaceCommunication({ d, espace }: { d: Dossier; espace: "appren
   );
 }
 
+/** Pièces d'une section du parcours de l'apprenant, dans l'ordre donné par le serveur. */
+export function ListePieces({ d, codes }: { d: Dossier; codes: readonly string[] }) {
+  const pieces = codes.flatMap((code) => d.pieces.filter((p) => p.code === code));
+  if (pieces.length === 0) return null;
+  return (
+    <Carte>
+      <ul className="divide-y divide-trait">
+        {pieces.map((p) => (
+          <LignePiece key={p.id} d={d} piece={p} />
+        ))}
+      </ul>
+    </Carte>
+  );
+}
+
 /** Pièces hors des deux espaces : recueil, positionnement, enquêtes de satisfaction, justificatif de refus. */
 export function AutresPieces({ d }: { d: Dossier }) {
   const pieces = d.pieces.filter((p) => p.espace === null);

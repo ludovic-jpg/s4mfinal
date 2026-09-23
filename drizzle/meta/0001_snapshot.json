@@ -1,0 +1,2804 @@
+{
+  "id": "3b3b80e1-9e25-48e6-8017-d861110b3081",
+  "prevId": "4a663d68-a324-4695-8a22-1b48d567c4f0",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "public.coffre_fichier": {
+      "name": "coffre_fichier",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "of_id": {
+          "name": "of_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "formateur_id": {
+          "name": "formateur_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "formation_id": {
+          "name": "formation_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "nom_fichier": {
+          "name": "nom_fichier",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "chemin": {
+          "name": "chemin",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "taille": {
+          "name": "taille",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "type_mime": {
+          "name": "type_mime",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "partageable": {
+          "name": "partageable",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "cree_le": {
+          "name": "cree_le",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "coffre_fichier_of_id_organisme_formation_id_fk": {
+          "name": "coffre_fichier_of_id_organisme_formation_id_fk",
+          "tableFrom": "coffre_fichier",
+          "tableTo": "organisme_formation",
+          "columnsFrom": [
+            "of_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "coffre_fichier_formateur_id_formateur_id_fk": {
+          "name": "coffre_fichier_formateur_id_formateur_id_fk",
+          "tableFrom": "coffre_fichier",
+          "tableTo": "formateur",
+          "columnsFrom": [
+            "formateur_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "coffre_fichier_formation_id_formation_id_fk": {
+          "name": "coffre_fichier_formation_id_formation_id_fk",
+          "tableFrom": "coffre_fichier",
+          "tableTo": "formation",
+          "columnsFrom": [
+            "formation_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.compteur": {
+      "name": "compteur",
+      "schema": "",
+      "columns": {
+        "of_id": {
+          "name": "of_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "cle": {
+          "name": "cle",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "valeur": {
+          "name": "valeur",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        }
+      },
+      "indexes": {
+        "compteur_unique": {
+          "name": "compteur_unique",
+          "columns": [
+            {
+              "expression": "of_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "cle",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "compteur_of_id_organisme_formation_id_fk": {
+          "name": "compteur_of_id_organisme_formation_id_fk",
+          "tableFrom": "compteur",
+          "tableTo": "organisme_formation",
+          "columnsFrom": [
+            "of_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.courrier": {
+      "name": "courrier",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "of_id": {
+          "name": "of_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "dossier_id": {
+          "name": "dossier_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "type": {
+          "name": "type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "destinataire": {
+          "name": "destinataire",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "sujet": {
+          "name": "sujet",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "corps_html": {
+          "name": "corps_html",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "pieces_jointes": {
+          "name": "pieces_jointes",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[]'::jsonb"
+        },
+        "statut": {
+          "name": "statut",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'journalise'"
+        },
+        "erreur": {
+          "name": "erreur",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "cree_le": {
+          "name": "cree_le",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "courrier_of_id_organisme_formation_id_fk": {
+          "name": "courrier_of_id_organisme_formation_id_fk",
+          "tableFrom": "courrier",
+          "tableTo": "organisme_formation",
+          "columnsFrom": [
+            "of_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "courrier_dossier_id_dossier_formation_id_fk": {
+          "name": "courrier_dossier_id_dossier_formation_id_fk",
+          "tableFrom": "courrier",
+          "tableTo": "dossier_formation",
+          "columnsFrom": [
+            "dossier_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.dossier_formation": {
+      "name": "dossier_formation",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "of_id": {
+          "name": "of_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "dossier_reference": {
+          "name": "dossier_reference",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "formateur_id": {
+          "name": "formateur_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "entreprise_id": {
+          "name": "entreprise_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "formation_id": {
+          "name": "formation_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "sous_statut": {
+          "name": "sous_statut",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'brouillon'"
+        },
+        "mode_financement": {
+          "name": "mode_financement",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'opco'"
+        },
+        "formation_titre": {
+          "name": "formation_titre",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "formation_objectifs": {
+          "name": "formation_objectifs",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "formation_objectifs_atteints": {
+          "name": "formation_objectifs_atteints",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "formation_niveau": {
+          "name": "formation_niveau",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "formation_prerequis": {
+          "name": "formation_prerequis",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "formation_public_vise": {
+          "name": "formation_public_vise",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "formation_programme": {
+          "name": "formation_programme",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "formation_duree_heures_total": {
+          "name": "formation_duree_heures_total",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "formation_duree_jours": {
+          "name": "formation_duree_jours",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "formation_duree_heures_presentiel": {
+          "name": "formation_duree_heures_presentiel",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "formation_duree_heures_distanciel": {
+          "name": "formation_duree_heures_distanciel",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "formation_modalite": {
+          "name": "formation_modalite",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'presentiel'"
+        },
+        "formation_lieu_nom": {
+          "name": "formation_lieu_nom",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "formation_lieu_adresse": {
+          "name": "formation_lieu_adresse",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "formation_lieu_siret": {
+          "name": "formation_lieu_siret",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "formation_lien_visio": {
+          "name": "formation_lien_visio",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "formation_date_debut": {
+          "name": "formation_date_debut",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "formation_date_fin": {
+          "name": "formation_date_fin",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "formation_opco": {
+          "name": "formation_opco",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "formation_prix_unitaire_ht": {
+          "name": "formation_prix_unitaire_ht",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "formation_prix_presentiel_ht": {
+          "name": "formation_prix_presentiel_ht",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "formateur_cout_horaire": {
+          "name": "formateur_cout_horaire",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "signature_lieu": {
+          "name": "signature_lieu",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "questionnaire_positionnement": {
+          "name": "questionnaire_positionnement",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "questionnaire_acquis": {
+          "name": "questionnaire_acquis",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "motif_renvoi": {
+          "name": "motif_renvoi",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "motif_refus": {
+          "name": "motif_refus",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "coffre_ouvert": {
+          "name": "coffre_ouvert",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "cree_le": {
+          "name": "cree_le",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "maj_le": {
+          "name": "maj_le",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "valide_le": {
+          "name": "valide_le",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "termine_le": {
+          "name": "termine_le",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "archive_le": {
+          "name": "archive_le",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "dossier_reference_unique": {
+          "name": "dossier_reference_unique",
+          "columns": [
+            {
+              "expression": "of_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "dossier_reference",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "dossier_formateur_idx": {
+          "name": "dossier_formateur_idx",
+          "columns": [
+            {
+              "expression": "formateur_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "dossier_formation_of_id_organisme_formation_id_fk": {
+          "name": "dossier_formation_of_id_organisme_formation_id_fk",
+          "tableFrom": "dossier_formation",
+          "tableTo": "organisme_formation",
+          "columnsFrom": [
+            "of_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "dossier_formation_formateur_id_formateur_id_fk": {
+          "name": "dossier_formation_formateur_id_formateur_id_fk",
+          "tableFrom": "dossier_formation",
+          "tableTo": "formateur",
+          "columnsFrom": [
+            "formateur_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "dossier_formation_entreprise_id_entreprise_cliente_id_fk": {
+          "name": "dossier_formation_entreprise_id_entreprise_cliente_id_fk",
+          "tableFrom": "dossier_formation",
+          "tableTo": "entreprise_cliente",
+          "columnsFrom": [
+            "entreprise_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "dossier_formation_formation_id_formation_id_fk": {
+          "name": "dossier_formation_formation_id_formation_id_fk",
+          "tableFrom": "dossier_formation",
+          "tableTo": "formation",
+          "columnsFrom": [
+            "formation_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.emargement": {
+      "name": "emargement",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "seance_id": {
+          "name": "seance_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "stagiaire_id": {
+          "name": "stagiaire_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "signataire": {
+          "name": "signataire",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "trace_png": {
+          "name": "trace_png",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "horodatage": {
+          "name": "horodatage",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "emargement_unique": {
+          "name": "emargement_unique",
+          "columns": [
+            {
+              "expression": "seance_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "stagiaire_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "signataire",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "emargement_seance_id_seance_id_fk": {
+          "name": "emargement_seance_id_seance_id_fk",
+          "tableFrom": "emargement",
+          "tableTo": "seance",
+          "columnsFrom": [
+            "seance_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "emargement_stagiaire_id_stagiaire_id_fk": {
+          "name": "emargement_stagiaire_id_stagiaire_id_fk",
+          "tableFrom": "emargement",
+          "tableTo": "stagiaire",
+          "columnsFrom": [
+            "stagiaire_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.entreprise_cliente": {
+      "name": "entreprise_cliente",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "of_id": {
+          "name": "of_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "formateur_id": {
+          "name": "formateur_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "entreprise_nom": {
+          "name": "entreprise_nom",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "entreprise_nom_commercial": {
+          "name": "entreprise_nom_commercial",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "entreprise_adresse": {
+          "name": "entreprise_adresse",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "entreprise_siret": {
+          "name": "entreprise_siret",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "entreprise_representant_civilite": {
+          "name": "entreprise_representant_civilite",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "entreprise_representant_prenom": {
+          "name": "entreprise_representant_prenom",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "entreprise_representant_nom": {
+          "name": "entreprise_representant_nom",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "entreprise_representant_telephone": {
+          "name": "entreprise_representant_telephone",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "entreprise_representant_email": {
+          "name": "entreprise_representant_email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "cree_le": {
+          "name": "cree_le",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "entreprise_cliente_of_id_organisme_formation_id_fk": {
+          "name": "entreprise_cliente_of_id_organisme_formation_id_fk",
+          "tableFrom": "entreprise_cliente",
+          "tableTo": "organisme_formation",
+          "columnsFrom": [
+            "of_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "entreprise_cliente_formateur_id_formateur_id_fk": {
+          "name": "entreprise_cliente_formateur_id_formateur_id_fk",
+          "tableFrom": "entreprise_cliente",
+          "tableTo": "formateur",
+          "columnsFrom": [
+            "formateur_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.evaluation": {
+      "name": "evaluation",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "dossier_id": {
+          "name": "dossier_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "stagiaire_id": {
+          "name": "stagiaire_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "type": {
+          "name": "type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "date": {
+          "name": "date",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "reponses": {
+          "name": "reponses",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "score": {
+          "name": "score",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ajustement": {
+          "name": "ajustement",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "saisie_par": {
+          "name": "saisie_par",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "cree_le": {
+          "name": "cree_le",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "evaluation_unique": {
+          "name": "evaluation_unique",
+          "columns": [
+            {
+              "expression": "dossier_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "stagiaire_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "type",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "evaluation_dossier_id_dossier_formation_id_fk": {
+          "name": "evaluation_dossier_id_dossier_formation_id_fk",
+          "tableFrom": "evaluation",
+          "tableTo": "dossier_formation",
+          "columnsFrom": [
+            "dossier_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "evaluation_stagiaire_id_stagiaire_id_fk": {
+          "name": "evaluation_stagiaire_id_stagiaire_id_fk",
+          "tableFrom": "evaluation",
+          "tableTo": "stagiaire",
+          "columnsFrom": [
+            "stagiaire_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.evenement": {
+      "name": "evenement",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "of_id": {
+          "name": "of_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "dossier_id": {
+          "name": "dossier_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "acteur_id": {
+          "name": "acteur_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "acteur_role": {
+          "name": "acteur_role",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "type": {
+          "name": "type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "libelle": {
+          "name": "libelle",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "detail": {
+          "name": "detail",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "cree_le": {
+          "name": "cree_le",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "evenement_dossier_idx": {
+          "name": "evenement_dossier_idx",
+          "columns": [
+            {
+              "expression": "dossier_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "evenement_of_id_organisme_formation_id_fk": {
+          "name": "evenement_of_id_organisme_formation_id_fk",
+          "tableFrom": "evenement",
+          "tableTo": "organisme_formation",
+          "columnsFrom": [
+            "of_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "evenement_dossier_id_dossier_formation_id_fk": {
+          "name": "evenement_dossier_id_dossier_formation_id_fk",
+          "tableFrom": "evenement",
+          "tableTo": "dossier_formation",
+          "columnsFrom": [
+            "dossier_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.facture_formateur": {
+      "name": "facture_formateur",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "dossier_id": {
+          "name": "dossier_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "facture_formateur_numero": {
+          "name": "facture_formateur_numero",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "facture_formateur_date": {
+          "name": "facture_formateur_date",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "facture_formateur_dossier_id_dossier_formation_id_fk": {
+          "name": "facture_formateur_dossier_id_dossier_formation_id_fk",
+          "tableFrom": "facture_formateur",
+          "tableTo": "dossier_formation",
+          "columnsFrom": [
+            "dossier_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "facture_formateur_dossier_id_unique": {
+          "name": "facture_formateur_dossier_id_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "dossier_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.facture_of": {
+      "name": "facture_of",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "dossier_id": {
+          "name": "dossier_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "facture_of_numero": {
+          "name": "facture_of_numero",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "facture_of_date": {
+          "name": "facture_of_date",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "facture_of_code_client": {
+          "name": "facture_of_code_client",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "facture_of_numero_adherent": {
+          "name": "facture_of_numero_adherent",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "facture_of_acompte": {
+          "name": "facture_of_acompte",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "facture_of_dossier_id_dossier_formation_id_fk": {
+          "name": "facture_of_dossier_id_dossier_formation_id_fk",
+          "tableFrom": "facture_of",
+          "tableTo": "dossier_formation",
+          "columnsFrom": [
+            "dossier_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "facture_of_dossier_id_unique": {
+          "name": "facture_of_dossier_id_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "dossier_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.formateur": {
+      "name": "formateur",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "of_id": {
+          "name": "of_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "utilisateur_id": {
+          "name": "utilisateur_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "formateur_prenom": {
+          "name": "formateur_prenom",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "formateur_nom": {
+          "name": "formateur_nom",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "formateur_email": {
+          "name": "formateur_email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "formateur_telephone": {
+          "name": "formateur_telephone",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "formateur_entreprise_nom": {
+          "name": "formateur_entreprise_nom",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "formateur_entreprise_adresse": {
+          "name": "formateur_entreprise_adresse",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "formateur_entreprise_siret": {
+          "name": "formateur_entreprise_siret",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "formateur_nda_numero": {
+          "name": "formateur_nda_numero",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "formateur_dreets_region": {
+          "name": "formateur_dreets_region",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "formateur_iban": {
+          "name": "formateur_iban",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "formateur_bic": {
+          "name": "formateur_bic",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "parcours": {
+          "name": "parcours",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "statut_candidature": {
+          "name": "statut_candidature",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'brouillon'"
+        },
+        "motif_decision": {
+          "name": "motif_decision",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "soumise_le": {
+          "name": "soumise_le",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "decidee_le": {
+          "name": "decidee_le",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "anonymise_le": {
+          "name": "anonymise_le",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "cree_le": {
+          "name": "cree_le",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "formateur_of_id_organisme_formation_id_fk": {
+          "name": "formateur_of_id_organisme_formation_id_fk",
+          "tableFrom": "formateur",
+          "tableTo": "organisme_formation",
+          "columnsFrom": [
+            "of_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "formateur_utilisateur_id_utilisateur_id_fk": {
+          "name": "formateur_utilisateur_id_utilisateur_id_fk",
+          "tableFrom": "formateur",
+          "tableTo": "utilisateur",
+          "columnsFrom": [
+            "utilisateur_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.formation": {
+      "name": "formation",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "of_id": {
+          "name": "of_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "formateur_id": {
+          "name": "formateur_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "formation_titre": {
+          "name": "formation_titre",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "formation_objectifs": {
+          "name": "formation_objectifs",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "formation_niveau": {
+          "name": "formation_niveau",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "formation_prerequis": {
+          "name": "formation_prerequis",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "formation_duree_heures_total": {
+          "name": "formation_duree_heures_total",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "formation_duree_jours": {
+          "name": "formation_duree_jours",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "formation_modalite": {
+          "name": "formation_modalite",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'presentiel'"
+        },
+        "formation_prix_unitaire_ht": {
+          "name": "formation_prix_unitaire_ht",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "programme": {
+          "name": "programme",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "public_vise": {
+          "name": "public_vise",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "archivee": {
+          "name": "archivee",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "cree_le": {
+          "name": "cree_le",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "formation_of_id_organisme_formation_id_fk": {
+          "name": "formation_of_id_organisme_formation_id_fk",
+          "tableFrom": "formation",
+          "tableTo": "organisme_formation",
+          "columnsFrom": [
+            "of_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "formation_formateur_id_formateur_id_fk": {
+          "name": "formation_formateur_id_formateur_id_fk",
+          "tableFrom": "formation",
+          "tableTo": "formateur",
+          "columnsFrom": [
+            "formateur_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.invitation": {
+      "name": "invitation",
+      "schema": "",
+      "columns": {
+        "jeton_hash": {
+          "name": "jeton_hash",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "utilisateur_id": {
+          "name": "utilisateur_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "expire_le": {
+          "name": "expire_le",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "utilisee_le": {
+          "name": "utilisee_le",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "cree_le": {
+          "name": "cree_le",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "invitation_utilisateur_id_utilisateur_id_fk": {
+          "name": "invitation_utilisateur_id_utilisateur_id_fk",
+          "tableFrom": "invitation",
+          "tableTo": "utilisateur",
+          "columnsFrom": [
+            "utilisateur_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.modele_outil": {
+      "name": "modele_outil",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "of_id": {
+          "name": "of_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "formateur_id": {
+          "name": "formateur_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "formation_id": {
+          "name": "formation_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "type": {
+          "name": "type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "titre": {
+          "name": "titre",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "contenu": {
+          "name": "contenu",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "cree_le": {
+          "name": "cree_le",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "modele_outil_of_id_organisme_formation_id_fk": {
+          "name": "modele_outil_of_id_organisme_formation_id_fk",
+          "tableFrom": "modele_outil",
+          "tableTo": "organisme_formation",
+          "columnsFrom": [
+            "of_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "modele_outil_formateur_id_formateur_id_fk": {
+          "name": "modele_outil_formateur_id_formateur_id_fk",
+          "tableFrom": "modele_outil",
+          "tableTo": "formateur",
+          "columnsFrom": [
+            "formateur_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "modele_outil_formation_id_formation_id_fk": {
+          "name": "modele_outil_formation_id_formation_id_fk",
+          "tableFrom": "modele_outil",
+          "tableTo": "formation",
+          "columnsFrom": [
+            "formation_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.organisme_formation": {
+      "name": "organisme_formation",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "of_nom": {
+          "name": "of_nom",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "of_forme_juridique": {
+          "name": "of_forme_juridique",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "of_adresse": {
+          "name": "of_adresse",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "of_siret": {
+          "name": "of_siret",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "of_nda_numero": {
+          "name": "of_nda_numero",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "of_dreets_region": {
+          "name": "of_dreets_region",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "of_qualiopi_numero": {
+          "name": "of_qualiopi_numero",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "of_certification_complementaire_numero": {
+          "name": "of_certification_complementaire_numero",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "of_representant_civilite": {
+          "name": "of_representant_civilite",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "of_representant_prenom": {
+          "name": "of_representant_prenom",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "of_representant_nom": {
+          "name": "of_representant_nom",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "of_email_pedagogie": {
+          "name": "of_email_pedagogie",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "of_email_comptabilite": {
+          "name": "of_email_comptabilite",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "of_tribunal_competent": {
+          "name": "of_tribunal_competent",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "of_iban": {
+          "name": "of_iban",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "of_bic": {
+          "name": "of_bic",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "of_banque_nom": {
+          "name": "of_banque_nom",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "of_tva_intracom": {
+          "name": "of_tva_intracom",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "of_telephone": {
+          "name": "of_telephone",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "formation_clause_subrogation": {
+          "name": "formation_clause_subrogation",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "portage_commission_pourcentage": {
+          "name": "portage_commission_pourcentage",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 25
+        },
+        "tva_pourcentage": {
+          "name": "tva_pourcentage",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "delai_paiement_jours": {
+          "name": "delai_paiement_jours",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 30
+        },
+        "conservation_annees": {
+          "name": "conservation_annees",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 10
+        },
+        "couleur": {
+          "name": "couleur",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'#1d6a45'"
+        },
+        "signature_representant_png": {
+          "name": "signature_representant_png",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "cree_le": {
+          "name": "cree_le",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.piece_dossier": {
+      "name": "piece_dossier",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "dossier_id": {
+          "name": "dossier_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "code": {
+          "name": "code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "stagiaire_id": {
+          "name": "stagiaire_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "statut": {
+          "name": "statut",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'en_attente'"
+        },
+        "chemin_depart": {
+          "name": "chemin_depart",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "empreinte_depart": {
+          "name": "empreinte_depart",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "genere_le": {
+          "name": "genere_le",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "chemin_retour": {
+          "name": "chemin_retour",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "nom_fichier_retour": {
+          "name": "nom_fichier_retour",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "empreinte_retour": {
+          "name": "empreinte_retour",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "mode_retour": {
+          "name": "mode_retour",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "retour_le": {
+          "name": "retour_le",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "retour_par": {
+          "name": "retour_par",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "transmise_le": {
+          "name": "transmise_le",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "piece_dossier_unique": {
+          "name": "piece_dossier_unique",
+          "columns": [
+            {
+              "expression": "dossier_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "code",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "coalesce(\"stagiaire_id\", '')",
+              "asc": true,
+              "isExpression": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "piece_dossier_dossier_id_dossier_formation_id_fk": {
+          "name": "piece_dossier_dossier_id_dossier_formation_id_fk",
+          "tableFrom": "piece_dossier",
+          "tableTo": "dossier_formation",
+          "columnsFrom": [
+            "dossier_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "piece_dossier_stagiaire_id_stagiaire_id_fk": {
+          "name": "piece_dossier_stagiaire_id_stagiaire_id_fk",
+          "tableFrom": "piece_dossier",
+          "tableTo": "stagiaire",
+          "columnsFrom": [
+            "stagiaire_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "piece_dossier_retour_par_utilisateur_id_fk": {
+          "name": "piece_dossier_retour_par_utilisateur_id_fk",
+          "tableFrom": "piece_dossier",
+          "tableTo": "utilisateur",
+          "columnsFrom": [
+            "retour_par"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.piece_formateur": {
+      "name": "piece_formateur",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "formateur_id": {
+          "name": "formateur_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "type": {
+          "name": "type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "nom_fichier": {
+          "name": "nom_fichier",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "chemin": {
+          "name": "chemin",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "taille": {
+          "name": "taille",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "cree_le": {
+          "name": "cree_le",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "piece_formateur_formateur_id_formateur_id_fk": {
+          "name": "piece_formateur_formateur_id_formateur_id_fk",
+          "tableFrom": "piece_formateur",
+          "tableTo": "formateur",
+          "columnsFrom": [
+            "formateur_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.seance": {
+      "name": "seance",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "dossier_id": {
+          "name": "dossier_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "date": {
+          "name": "date",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "heure_debut": {
+          "name": "heure_debut",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "heure_fin": {
+          "name": "heure_fin",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "seance_dossier_id_dossier_formation_id_fk": {
+          "name": "seance_dossier_id_dossier_formation_id_fk",
+          "tableFrom": "seance",
+          "tableTo": "dossier_formation",
+          "columnsFrom": [
+            "dossier_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.session_utilisateur": {
+      "name": "session_utilisateur",
+      "schema": "",
+      "columns": {
+        "jeton_hash": {
+          "name": "jeton_hash",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "utilisateur_id": {
+          "name": "utilisateur_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "expire_le": {
+          "name": "expire_le",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "cree_le": {
+          "name": "cree_le",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "session_utilisateur_utilisateur_id_utilisateur_id_fk": {
+          "name": "session_utilisateur_utilisateur_id_utilisateur_id_fk",
+          "tableFrom": "session_utilisateur",
+          "tableTo": "utilisateur",
+          "columnsFrom": [
+            "utilisateur_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.signature": {
+      "name": "signature",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "piece_id": {
+          "name": "piece_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "utilisateur_id": {
+          "name": "utilisateur_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "signataire_nom": {
+          "name": "signataire_nom",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "signataire_role": {
+          "name": "signataire_role",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "signataire_email": {
+          "name": "signataire_email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "zone": {
+          "name": "zone",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "trace_png": {
+          "name": "trace_png",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "lieu": {
+          "name": "lieu",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "horodatage": {
+          "name": "horodatage",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "empreinte_document": {
+          "name": "empreinte_document",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "adresse_ip": {
+          "name": "adresse_ip",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "signature_piece_id_piece_dossier_id_fk": {
+          "name": "signature_piece_id_piece_dossier_id_fk",
+          "tableFrom": "signature",
+          "tableTo": "piece_dossier",
+          "columnsFrom": [
+            "piece_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "signature_utilisateur_id_utilisateur_id_fk": {
+          "name": "signature_utilisateur_id_utilisateur_id_fk",
+          "tableFrom": "signature",
+          "tableTo": "utilisateur",
+          "columnsFrom": [
+            "utilisateur_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.stagiaire": {
+      "name": "stagiaire",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "of_id": {
+          "name": "of_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "formateur_id": {
+          "name": "formateur_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "entreprise_id": {
+          "name": "entreprise_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "utilisateur_id": {
+          "name": "utilisateur_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "stagiaire_prenom": {
+          "name": "stagiaire_prenom",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "stagiaire_nom": {
+          "name": "stagiaire_nom",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "stagiaire_email": {
+          "name": "stagiaire_email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "stagiaire_telephone": {
+          "name": "stagiaire_telephone",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "stagiaire_poste": {
+          "name": "stagiaire_poste",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "stagiaire_situation_handicap": {
+          "name": "stagiaire_situation_handicap",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "cree_le": {
+          "name": "cree_le",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "stagiaire_of_id_organisme_formation_id_fk": {
+          "name": "stagiaire_of_id_organisme_formation_id_fk",
+          "tableFrom": "stagiaire",
+          "tableTo": "organisme_formation",
+          "columnsFrom": [
+            "of_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "stagiaire_formateur_id_formateur_id_fk": {
+          "name": "stagiaire_formateur_id_formateur_id_fk",
+          "tableFrom": "stagiaire",
+          "tableTo": "formateur",
+          "columnsFrom": [
+            "formateur_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "stagiaire_entreprise_id_entreprise_cliente_id_fk": {
+          "name": "stagiaire_entreprise_id_entreprise_cliente_id_fk",
+          "tableFrom": "stagiaire",
+          "tableTo": "entreprise_cliente",
+          "columnsFrom": [
+            "entreprise_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "stagiaire_utilisateur_id_utilisateur_id_fk": {
+          "name": "stagiaire_utilisateur_id_utilisateur_id_fk",
+          "tableFrom": "stagiaire",
+          "tableTo": "utilisateur",
+          "columnsFrom": [
+            "utilisateur_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.stagiaire_dossier": {
+      "name": "stagiaire_dossier",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "dossier_id": {
+          "name": "dossier_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "stagiaire_id": {
+          "name": "stagiaire_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "poste_occupe": {
+          "name": "poste_occupe",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "statut_assiduite": {
+          "name": "statut_assiduite",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "rang": {
+          "name": "rang",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 1
+        }
+      },
+      "indexes": {
+        "stagiaire_dossier_unique": {
+          "name": "stagiaire_dossier_unique",
+          "columns": [
+            {
+              "expression": "dossier_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "stagiaire_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "stagiaire_dossier_dossier_id_dossier_formation_id_fk": {
+          "name": "stagiaire_dossier_dossier_id_dossier_formation_id_fk",
+          "tableFrom": "stagiaire_dossier",
+          "tableTo": "dossier_formation",
+          "columnsFrom": [
+            "dossier_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "stagiaire_dossier_stagiaire_id_stagiaire_id_fk": {
+          "name": "stagiaire_dossier_stagiaire_id_stagiaire_id_fk",
+          "tableFrom": "stagiaire_dossier",
+          "tableTo": "stagiaire",
+          "columnsFrom": [
+            "stagiaire_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.utilisateur": {
+      "name": "utilisateur",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "of_id": {
+          "name": "of_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "email": {
+          "name": "email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "mot_de_passe_hash": {
+          "name": "mot_de_passe_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "role": {
+          "name": "role",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "prenom": {
+          "name": "prenom",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "nom": {
+          "name": "nom",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "actif": {
+          "name": "actif",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "cree_le": {
+          "name": "cree_le",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "supprime_le": {
+          "name": "supprime_le",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "utilisateur_email_unique": {
+          "name": "utilisateur_email_unique",
+          "columns": [
+            {
+              "expression": "lower(\"email\")",
+              "asc": true,
+              "isExpression": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "utilisateur_of_id_organisme_formation_id_fk": {
+          "name": "utilisateur_of_id_organisme_formation_id_fk",
+          "tableFrom": "utilisateur",
+          "tableTo": "organisme_formation",
+          "columnsFrom": [
+            "of_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    }
+  },
+  "enums": {},
+  "schemas": {},
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "views": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}

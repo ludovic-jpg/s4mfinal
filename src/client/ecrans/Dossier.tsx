@@ -11,7 +11,7 @@ import { api, dateFr, dateLongue, euros, heuresFr, instantFr, octets, type Coffr
 import { useActeur } from "../session";
 import { Alerte, Bouton, Carte, Champ, Chargement, cx, DepotFichier, Etiquette, ListeManques, Modale, Onglets, ZoneTexte, useNotifier } from "../ui/base";
 import { ZoneDeTrace } from "../ui/Signature";
-import { AutresPieces, EspaceCommunication, useRafraichirDossier } from "./DossierPieces";
+import { AutresPieces, EspaceCommunication, ListePieces, useRafraichirDossier } from "./DossierPieces";
 import { Questionnaires } from "./DossierQuestionnaires";
 
 const ETAPES = ["A", "B", "C", "D", "E", "F", "G"] as const;
@@ -44,9 +44,10 @@ function Frise({ d }: { d: Dossier }) {
 }
 
 function EnTete({ d, children }: { d: Dossier; children?: React.ReactNode }) {
+  const acteur = useActeur();
   return (
     <header className="mb-6">
-      <Link to="/" className="mb-3 inline-flex items-center gap-1.5 text-sm text-encre-3 hover:text-encre">
+      <Link to={acteur.role === "formateur" ? "/dossiers" : "/"} className="mb-3 inline-flex items-center gap-1.5 text-sm text-encre-3 hover:text-encre">
         <ArrowLeft className="size-4" aria-hidden /> Retour
       </Link>
       <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-4">
@@ -172,7 +173,7 @@ function VueInterne({ d }: { d: Dossier }) {
     mutationFn: () => api.suppr(`/dossiers/${d.id}`),
     onSuccess: async () => {
       await requetes.invalidateQueries({ queryKey: ["dossiers"] });
-      navigate({ to: "/" });
+      navigate({ to: acteur.role === "formateur" ? "/dossiers" : "/" });
     },
   });
   const recreer = useMutation({ mutationFn: () => api.post<{ id: string }>(`/dossiers/${d.id}/recreer`), onSuccess: (n) => navigate({ to: "/dossiers/$id", params: { id: n.id } }), onError: (e) => notifier("danger", e.message) });
@@ -275,6 +276,7 @@ function Synthese({ d }: { d: Dossier }) {
           <Carte className="px-5 py-2">
             <dl>
               <Definition libelle="Objectifs">{f.formation_objectifs}</Definition>
+              <Definition libelle="Programme (annexe)">{f.formation_programme || "— à renseigner"}</Definition>
               <Definition libelle="Niveau · prérequis">{[f.formation_niveau, f.formation_prerequis].filter(Boolean).join(" · ")}</Definition>
               <Definition libelle="Durée">{`${heuresFr(f.formation_duree_heures_total)} sur ${f.formation_duree_jours ?? "—"} jour(s)`}</Definition>
               <Definition libelle="Modalité">{MODALITES[f.formation_modalite]}</Definition>
@@ -347,6 +349,7 @@ function EditionDossier({ d }: { d: Dossier }) {
     prix: f.formation_prix_unitaire_ht === null ? "" : String(f.formation_prix_unitaire_ht / 100),
     signature_lieu: f.signature_lieu,
     formation_objectifs: f.formation_objectifs,
+    formation_programme: f.formation_programme,
   });
   const [seances, setSeances] = useState(d.seances.map((s) => ({ date: s.date, heure_debut: s.heure_debut, heure_fin: s.heure_fin })));
   const champ = (cle: keyof typeof v) => ({ value: v[cle], onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setV({ ...v, [cle]: e.target.value }) });
@@ -373,6 +376,7 @@ function EditionDossier({ d }: { d: Dossier }) {
           <p className="mt-0.5 text-[13px] text-encre-3">Pré-rempli depuis votre catalogue et la fiche de l'entreprise. Ce que vous modifiez ici ne change que ce dossier.</p>
         </div>
         <ZoneTexte libelle="Objectifs de la formation" rows={3} {...champ("formation_objectifs")} />
+        <ZoneTexte libelle="Programme détaillé" rows={4} aide="Repris de la formation ; il devient l'annexe « Programme de formation » de la convention." {...champ("formation_programme")} />
         <div className="grid gap-4 sm:grid-cols-2">
           <Champ libelle="Date de début" type="date" {...champ("formation_date_debut")} />
           <Champ libelle="Date de fin" type="date" min={v.formation_date_debut} {...champ("formation_date_fin")} />
@@ -458,6 +462,14 @@ function Stagiaires({ d }: { d: Dossier }) {
                   {st.prenom} {st.nom}
                 </p>
                 <p className="truncate text-[13px] text-encre-2">{[st.poste, st.email].filter(Boolean).join(" · ")}</p>
+                {/* Où en est cet apprenant dans son parcours : la même lecture que dans son propre espace. */}
+                <ol className="mt-2 flex flex-wrap gap-1" aria-label={`Parcours de ${st.prenom}`}>
+                  {(d.parcours.find((p) => p.stagiaire_id === st.id)?.sections ?? []).map((sec) => (
+                    <li key={sec.cle} title={sec.message} className={cx("rounded-xs px-1.5 py-0.5 text-[10px] font-semibold", STYLE_SECTION[sec.etat].pastille)}>
+                      {sec.titre.split(" — ")[0]}
+                    </li>
+                  ))}
+                </ol>
               </div>
               {!d.archive && (
                 <div className="flex flex-wrap gap-1.5">
@@ -596,44 +608,128 @@ function Journal({ d }: { d: Dossier }) {
   );
 }
 
-// ——— Vue de l'apprenant ———
+// ——— Vue de l'apprenant : son parcours, section par section (cahier des charges oral du 23/09/2026) ———
+type SectionParcours = Dossier["parcours"][number]["sections"][number];
+
+const STYLE_SECTION: Record<SectionParcours["etat"], { cadre: string; pastille: string; libelle: string }> = {
+  a_faire: { cadre: "border-attente/70 bg-attente-doux/40", pastille: "bg-attente text-attente-encre", libelle: "À faire" },
+  en_attente: { cadre: "border-trait bg-papier-2", pastille: "bg-papier-3 text-encre-2", libelle: "En cours" },
+  termine: { cadre: "border-valide/40 bg-valide-doux/60", pastille: "bg-valide text-sur-accent", libelle: "Terminé" },
+  refuse: { cadre: "border-danger/40 bg-danger-doux", pastille: "bg-danger text-sur-accent", libelle: "Refusé" },
+  a_venir: { cadre: "border-dashed border-trait-fort bg-carte opacity-70", pastille: "bg-papier-3 text-encre-3", libelle: "À venir" },
+};
+
+function DeclarationDepot({ d }: { d: Dossier }) {
+  const rafraichir = useRafraichirDossier(d.id);
+  const notifier = useNotifier();
+  const [coche, setCoche] = useState(false);
+  const action = d.actions.find((a) => a.action === "declarer_depot");
+  const declarer = useMutation({
+    mutationFn: () => api.post(`/dossiers/${d.id}/actions/declarer_depot`, {}),
+    onSuccess: async () => {
+      await rafraichir();
+      notifier("succes", "Merci : votre formateur et l'organisme sont informés du dépôt de votre demande.");
+    },
+    onError: (e) => {
+      setCoche(false);
+      notifier("danger", e.message);
+    },
+  });
+  if (!action) return null;
+  const bloquee = action.bloqueePar !== null;
+  return (
+    <div className="mt-3 rounded-md border border-trait bg-carte p-4">
+      <label className={cx("flex items-start gap-3 text-sm", bloquee ? "cursor-not-allowed text-encre-3" : "cursor-pointer")}>
+        <input
+          type="checkbox"
+          className="mt-0.5 size-4 shrink-0 accent-(--color-accent)"
+          checked={coche}
+          disabled={bloquee || declarer.isPending}
+          onChange={(e) => setCoche(e.target.checked)}
+        />
+        <span>
+          <strong className="font-semibold">J'affirme avoir déposé la demande de financement</strong> auprès de mon organisme de financement (OPCO, FAF…), avec les documents ci-dessus.
+          {bloquee && <span className="mt-1 block text-xs">{action.bloqueePar}</span>}
+        </span>
+      </label>
+      <Bouton className="mt-3" variante="primaire" taille="sm" disabled={!coche || bloquee} enCours={declarer.isPending} onClick={() => declarer.mutate()}>
+        Confirmer le dépôt de ma demande
+      </Bouton>
+    </div>
+  );
+}
+
+function SectionApprenant({ d, section, rang, children }: { d: Dossier; section: SectionParcours; rang: number; children?: React.ReactNode }) {
+  const style = STYLE_SECTION[section.etat];
+  const ouverte = section.etat !== "a_venir";
+  return (
+    <section aria-label={section.titre} data-etat={section.etat} className={cx("rounded-lg border p-4 transition-colors duration-300 sm:p-5", style.cadre)}>
+      <header className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+        <span className="chiffres grid size-7 shrink-0 place-items-center rounded-full bg-carte text-sm font-semibold text-encre-2 shadow-carte">{rang}</span>
+        <h2 className="min-w-0 flex-1 text-base font-semibold sm:text-lg">{section.titre}</h2>
+        <span className={cx("rounded-xs px-2 py-0.5 text-[11px] font-semibold tracking-wide", style.pastille)}>{style.libelle}</span>
+      </header>
+      <p className="mt-2 text-sm text-encre-2">{section.message}</p>
+      {ouverte && section.pieces.length > 0 && (
+        <div className="mt-3">
+          <ListePieces d={d} codes={section.pieces} />
+        </div>
+      )}
+      {ouverte && children}
+    </section>
+  );
+}
+
 function VueApprenant({ d }: { d: Dossier }) {
   const acteur = useActeur();
   const coffres = useQuery({ queryKey: ["coffres"], queryFn: () => api.get<CoffreApprenant[]>("/coffres") });
   const coffre = coffres.data?.find((c) => c.dossier_id === d.id);
-  const aTraiter = d.pieces.filter((p) => p.espace === "apprenant" && p.statut === "en_attente" && (p.peut_signer || (p.peut_deposer && p.code !== "ACC")));
+  const sections = d.parcours.find((p) => p.stagiaire_id === acteur.stagiaire_id)?.sections ?? [];
+  // La section « Accord » n'existe pour l'apprenant qu'une fois sa demande déclarée déposée.
+  const visibles = sections.filter((s) => s.cle !== "accord" || s.etat !== "a_venir");
+  const aFaire = visibles.filter((s) => s.etat === "a_faire");
 
   return (
     <div className="mx-auto max-w-4xl">
       <EnTete d={d} />
-      {aTraiter.length > 0 ? (
+      {!d.archive && (
         <div className="mb-6">
-          <Alerte ton="attention" titre={aTraiter.length === 1 ? "1 document attend votre retour" : `${aTraiter.length} documents attendent votre retour`}>
-            Pour chacun, vous pouvez signer en ligne, ou le télécharger, le signer puis le redéposer.
-          </Alerte>
+          {aFaire.length > 0 ? (
+            <Alerte ton="attention" titre={`Prochaine étape : ${aFaire[0]!.titre}`}>{aFaire[0]!.message}</Alerte>
+          ) : (
+            <Alerte ton="succes" titre="Vous êtes à jour">Rien n'attend votre action pour le moment.</Alerte>
+          )}
         </div>
-      ) : (
-        !d.archive && <div className="mb-6"><Alerte ton="succes" titre="Vous êtes à jour">Aucun document n'attend votre retour pour le moment.</Alerte></div>
       )}
 
-      <section className="mb-8">
-        <h2 className="mb-3 text-lg font-semibold">Mes documents</h2>
-        <EspaceCommunication d={d} espace="apprenant" />
-      </section>
+      <ol className="mb-6 flex flex-wrap gap-1.5" aria-label="Mon parcours">
+        {visibles.map((s, i) => (
+          <li key={s.cle} className={cx("rounded-xs px-2 py-1 text-[11px] font-semibold", STYLE_SECTION[s.etat].pastille)}>
+            {i + 1}. {s.titre.split(" — ")[0]}
+          </li>
+        ))}
+      </ol>
 
-      <section className="mb-8">
-        <h2 className="mb-3 text-lg font-semibold">Mes questionnaires</h2>
-        <Questionnaires d={d} stagiaireId={acteur.stagiaire_id!} types={["recueil", "positionnement", "acquis", "satisfaction_chaud", "satisfaction_froid"]} />
-      </section>
+      <div className="space-y-4">
+        {visibles.map((section, i) => (
+          <SectionApprenant key={section.cle} d={d} section={section} rang={i + 1}>
+            {section.cle === "preliminaire" && (
+              <div className="mt-3">
+                <Questionnaires d={d} stagiaireId={acteur.stagiaire_id!} types={["recueil", "positionnement"]} />
+              </div>
+            )}
+            {section.cle === "financement" && <DeclarationDepot d={d} />}
+            {section.cle === "realisation" && (
+              <div className="mt-3 space-y-4">
+                <Questionnaires d={d} stagiaireId={acteur.stagiaire_id!} types={["acquis", "satisfaction_chaud", "satisfaction_froid"]} />
+                {d.seances.length > 0 && <Emargement d={d} />}
+              </div>
+            )}
+          </SectionApprenant>
+        ))}
+      </div>
 
-      {d.seances.length > 0 && (
-        <section className="mb-8">
-          <h2 className="mb-3 text-lg font-semibold">Mes séances</h2>
-          <Emargement d={d} />
-        </section>
-      )}
-
-      <section>
+      <section className="mt-8">
         <h2 className="mb-3 flex items-center gap-2 text-lg font-semibold">
           Supports de formation
           {coffre ? <Unlock className="size-4 text-valide" aria-hidden /> : <Lock className="size-4 text-encre-3" aria-hidden />}

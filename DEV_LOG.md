@@ -135,6 +135,32 @@ Ces règles sont pures ; elles ont été écrites et testées avant la base de d
 
 **Checkpoint final.** `npm run verifier` : typage propre, lint propre, **182 tests verts** (12 fichiers). `npm run build` : OK. `npm run test:e2e` : **5/5**.
 
+## 23/09/2026 — Cahier des charges oral : trois espaces, parcours de l'apprenant, IA pédagogique ✅ — 54 tests de plus
+
+**Spécification.** Dictée du porteur de projet, analysée phrase par phrase dans `docs/ANALYSE_23-09.md` (12 exigences
+O-01 à O-12 : 4 conformes, 4 partielles, 4 manquantes).
+
+**Critères d'acceptation.** Chaque phrase du cahier oral a un test qui la cite ; l'IA ne peut pas atteindre les pièces
+contractuelles (test de garde) ; les 182 tests existants restent verts ou sont mis à jour avec leur justification.
+
+**Réalisé.**
+- Noyau : `parcours/apprenant.ts` (cinq sections colorées), `pedagogie/propositions.ts` (consignes et validation
+  stricte des réponses de l'IA), `declarer_depot` ouvert à l'apprenant et gardé par la convention signée, pièce `PRG`.
+- Serveur : migration `0001_programme_annexe.sql` (programme figé dans le dossier), port `ia.ts` et service
+  `pedagogie-ia.ts`, routes `/api/ia/*`, e-mail « demande de financement déposée », programme joint à l'e-mail à l'entreprise.
+- Interface : accueil du formateur à trois espaces, rail latéral groupé, pipeline déplacé dans `/dossiers`, générateur
+  à onglets qu'on peut reprendre, espace de l'apprenant en sections, boutons « Proposer avec l'IA ».
+
+**Bogue de fond corrigé.** La convention (articles 1.2 et 3) annonçait « le programme détaillé en annexe », mais
+aucune pièce ne le portait : un auditeur Qualiopi l'aurait relevé. Le programme est désormais une pièce générée,
+transmise, jointe à l'e-mail à l'entreprise, et exigée avant la soumission.
+
+**Tests mis à jour (et pourquoi).** `pipeline.test.ts` (l'apprenant a désormais une transition : décision du cahier oral),
+`referentiel.test.ts` et `parcours-complet.test.ts` (pièce « 2 ter » ajoutée), jeu de démonstration (le refus de
+financement intervient après la signature de la convention, comme dans la réalité).
+
+**Checkpoint.** `npm run verifier` : **236 tests verts** (17 fichiers). `npm run test:e2e` : **7/7**. `npm run build` : OK.
+
 ## Dette connue, à traiter ensuite
 
 1. Hypothèses 11 (qui signe la convention), 12 (valeur de la signature) et 13 (relecture de l'authentification) : **bloquantes avant toute mise en production**.

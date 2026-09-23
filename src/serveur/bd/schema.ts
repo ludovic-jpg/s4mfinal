@@ -208,6 +208,8 @@ export const dossierFormation = pgTable(
     formation_objectifs_atteints: t("formation_objectifs_atteints"),
     formation_niveau: t("formation_niveau"),
     formation_prerequis: t("formation_prerequis"),
+    formation_public_vise: t("formation_public_vise"),
+    formation_programme: t("formation_programme"),
     formation_duree_heures_total: real("formation_duree_heures_total"),
     formation_duree_jours: real("formation_duree_jours"),
     formation_duree_heures_presentiel: real("formation_duree_heures_presentiel"),

@@ -5,6 +5,7 @@ import type { Archive } from "../ports/archive";
 import type { Courrier } from "../ports/courrier";
 import type { ConvertisseurPdf } from "../ports/pdf";
 import type { Horloge } from "../ports/divers";
+import type { AssistantPedagogique } from "../ports/ia";
 import type { Role } from "@/domaine/referentiel/pieces";
 import { evenement } from "../bd/schema";
 import { nouvelId } from "../ports/divers";
@@ -16,6 +17,8 @@ export interface Services {
   pdf: ConvertisseurPdf;
   horloge: Horloge;
   appUrl: string;
+  /** Assistant IA de l'espace pédagogique — facultatif ; absent = indisponible (voir ports/ia.ts). */
+  ia?: AssistantPedagogique;
 }
 
 /** Qui agit. Construit par le serveur à partir de la session — jamais à partir du corps d'une requête. */

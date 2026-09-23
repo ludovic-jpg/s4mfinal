@@ -90,6 +90,7 @@ export async function semer(s: Services): Promise<void> {
     formation_duree_jours: 3,
     formation_prix_unitaire_ht: 145_000,
     public_vise: "Managers récemment nommés, chefs d'équipe.",
+    programme: "Jour 1 — Posture et rôle du manager de proximité.\nJour 2 — Entretiens individuels : recadrage, feedback.\nJour 3 — Animer une réunion d'équipe efficace.",
   });
   await enregistrerOutil(s, sophie, { type: "positionnement", titre: QCM_EXCEL.titre, formation_id: excel.id, contenu: QCM_EXCEL });
   await enregistrerOutil(s, sophie, { type: "acquis", titre: QCM_ACQUIS.titre, formation_id: excel.id, contenu: QCM_ACQUIS });
@@ -152,13 +153,6 @@ export async function semer(s: Services): Promise<void> {
     await executerAction(s, admin, d.id, "valider_dossier");
     if (jalon === "valide") return d.id;
 
-    if (jalon === "refus") {
-      await executerAction(s, sophie, d.id, "declarer_depot");
-      await deposerPieceExterne(s, sophie, d.id, "REF", pdfFictif("Refus de prise en charge"));
-      await executerAction(s, sophie, d.id, "enregistrer_refus", { motif: "Enveloppe budgétaire de la branche épuisée pour l'exercice." });
-      return d.id;
-    }
-
     // Anne signe tout en ligne ; les autres apprenants retournent des documents signés sur papier :
     // la démonstration montre ainsi les deux voies de retour du cahier des charges (F-COM-06 a et b).
     const signerTout = async (codes: string[]) => {
@@ -177,7 +171,14 @@ export async function semer(s: Services): Promise<void> {
     const anneParticipe = o.stagiaires.includes(anne.id);
 
     await signerTout(["PRE", "02-AVT"]);
-    await executerAction(s, sophie, d.id, "declarer_depot");
+    if (jalon === "refus") {
+      await executerAction(s, sophie, d.id, "declarer_depot");
+      await deposerPieceExterne(s, sophie, d.id, "REF", pdfFictif("Refus de prise en charge"));
+      await executerAction(s, sophie, d.id, "enregistrer_refus", { motif: "Enveloppe budgétaire de la branche épuisée pour l'exercice." });
+      return d.id;
+    }
+    // L'apprenant affirme lui-même, depuis son espace, avoir déposé la demande auprès de son OPCO.
+    await executerAction(s, await apprenant(o.stagiaires[0]!, d.id), d.id, "declarer_depot");
     await deposerPieceExterne(s, admin, d.id, "ACC", pdfFictif("Accord de prise en charge"));
     if (jalon === "accord") return d.id;
 

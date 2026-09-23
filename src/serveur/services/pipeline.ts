@@ -2,7 +2,7 @@
  * Exécution des transitions du pipeline. Le noyau DÉCIDE (`transiter`), ce service EXÉCUTE :
  * il persiste le nouveau sous-statut, réalise les effets déclarés, et journalise le tout.
  */
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { formaterDate } from "@/domaine/dossier/formats";
 import { libelleSousStatut } from "@/domaine/pipeline/statuts";
 import { REGLES, transiter, type Acteur as ActeurPipeline, type Action, type Effet } from "@/domaine/pipeline/transitions";
@@ -35,6 +35,8 @@ export async function manquesAvantSoumission(s: Services, d: LigneDossier): Prom
   const seances = await seancesDuDossier(s, d.id);
   if (!d.formation_titre) manques.push("Intitulé de la formation");
   if (!d.formation_objectifs) manques.push("Objectifs de la formation");
+  // La convention renvoie au « programme détaillé en annexe » : sans lui, la pièce PRG serait vide.
+  if (!d.formation_programme) manques.push("Programme détaillé de la formation (annexe de la convention)");
   if (!d.formation_date_debut || !d.formation_date_fin) manques.push("Dates de début et de fin");
   else if (d.formation_date_fin < d.formation_date_debut) manques.push("La date de fin précède la date de début");
   if (!d.formation_duree_heures_total) manques.push("Durée totale en heures");
@@ -97,7 +99,8 @@ export async function executerAction(s: Services, acteur: Acteur | "systeme", do
   }
 
   await synchroniserPieces(s, apres);
-  for (const effet of resultat.effets) await executerEffet(s, apres, effet, options);
+  const par = acteur === "systeme" ? "La plateforme" : acteur.nom;
+  for (const effet of resultat.effets) await executerEffet(s, apres, effet, { ...options, par });
   return (await s.bd.select().from(dossierFormation).where(eq(dossierFormation.id, d.id)))[0]!;
 }
 
@@ -107,7 +110,7 @@ async function adminsDe(s: Services, of_id: string) {
 
 const nomDeFichier = (chemin: string) => chemin.split("/").pop()!;
 
-async function executerEffet(s: Services, d: LigneDossier, effet: Effet, options: { motif?: string }): Promise<void> {
+async function executerEffet(s: Services, d: LigneDossier, effet: Effet, options: { motif?: string; par: string }): Promise<void> {
   const of = await lireOrganisme(s, d.of_id);
   const [form] = await s.bd.select().from(formateur).where(eq(formateur.id, d.formateur_id));
   const lienDossier = `${s.appUrl}/dossiers/${d.id}`;
@@ -126,11 +129,17 @@ async function executerEffet(s: Services, d: LigneDossier, effet: Effet, options
       return;
     }
 
+    case "NOTIFIER_DEPOT_DECLARE": {
+      const c = courriels.depotDeclare({ of_nom: of.of_nom, prenom: form!.formateur_prenom, reference: d.dossier_reference, formation: d.formation_titre, par: options.par, lien: lienDossier });
+      await s.courrier.envoyer({ of_id: d.of_id, dossier_id: d.id, type: "depot_declare", destinataire: form!.formateur_email, ...c });
+      return;
+    }
+
     case "GENERER_PIECES_DE_DEPART": {
       // F-ARCH-01/03 : toutes les pièces « de départ » de la nomenclature, dans « Pièces de départ ».
-      const pieces = await genererPieces(s, d, ["00-AVT", "01-AVT", "PRE", "02-AVT", "03-AVT"]);
-      // Le planning est transmis avec la convention, sans statut (F-COM-03bis) : simple accusé de transmission.
-      await s.bd.update(pieceDossier).set({ transmise_le: s.horloge.maintenant() }).where(and(eq(pieceDossier.dossier_id, d.id), eq(pieceDossier.code, "03-AVT")));
+      const pieces = await genererPieces(s, d, ["00-AVT", "01-AVT", "PRE", "02-AVT", "03-AVT", "PRG"]);
+      // Planning et programme sont transmis en annexe de la convention, sans statut (F-COM-03bis) : simple accusé de transmission.
+      await s.bd.update(pieceDossier).set({ transmise_le: s.horloge.maintenant() }).where(and(eq(pieceDossier.dossier_id, d.id), inArray(pieceDossier.code, ["03-AVT", "PRG"])));
       await journaliser(s, { of_id: d.of_id, dossier_id: d.id, acteur: "systeme", type: "pieces_generees", libelle: `${pieces.length} pièces de départ générées et archivées` });
       return;
     }
@@ -138,7 +147,7 @@ async function executerEffet(s: Services, d: LigneDossier, effet: Effet, options
     case "EMAIL_ENTREPRISE_PIECES_FINANCEMENT": {
       // F-DOS-06 / RG-04 : e-mail automatique au responsable de l'entreprise, avec les pièces du financement.
       const [ent] = await s.bd.select().from(entrepriseCliente).where(eq(entrepriseCliente.id, d.entreprise_id));
-      const pieces = (await s.bd.select().from(pieceDossier).where(eq(pieceDossier.dossier_id, d.id))).filter((p) => ["PRE", "02-AVT", "03-AVT"].includes(p.code) && p.chemin_depart);
+      const pieces = (await s.bd.select().from(pieceDossier).where(eq(pieceDossier.dossier_id, d.id))).filter((p) => ["PRE", "02-AVT", "03-AVT", "PRG"].includes(p.code) && p.chemin_depart);
       const stagiaires = (await stagiairesDuDossier(s, d.id)).map((l) => `${l.st.stagiaire_prenom} ${l.st.stagiaire_nom}`).join(", ");
       const c = courriels.piecesFinancementEntreprise({
         of_nom: of.of_nom,

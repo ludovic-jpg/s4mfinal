@@ -22,7 +22,7 @@ let brouillon: string;
 
 /** Amène un dossier jusqu'à « formation terminée » par le chemin le plus court. */
 async function dossierRealise(formateur: Acteur, fin: string): Promise<string> {
-  const f = await creerFormation(b.s, formateur, { formation_titre: "Formation BPF", formation_objectifs: "Objectif", formation_duree_heures_total: 7, formation_duree_jours: 1, formation_prix_unitaire_ht: 70_000 });
+  const f = await creerFormation(b.s, formateur, { formation_titre: "Formation BPF", formation_objectifs: "Objectif", programme: "Contenu", formation_duree_heures_total: 7, formation_duree_jours: 1, formation_prix_unitaire_ht: 70_000 });
   await enregistrerOutil(b.s, formateur, { type: "positionnement", titre: "P", formation_id: f.id, contenu: QCM });
   const ent = await enregistrerEntreprise(b.s, formateur, { entreprise_nom: "Client SA", entreprise_adresse: "1 rue du Test", entreprise_siret: "33333333333333", entreprise_representant_nom: "Durand", entreprise_representant_email: "client@exemple.example" });
   const st = await enregistrerStagiaire(b.s, formateur, { stagiaire_prenom: "Marc", stagiaire_nom: "Test", stagiaire_email: `marc.${fin}@exemple.example` });

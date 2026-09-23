@@ -1,35 +1,25 @@
 /** Cadre de l'application : exige une session, affiche la navigation propre à chaque rôle (rail latéral, tiroir sur mobile). */
 import { useEffect, useState } from "react";
 import { Link, Outlet, useLocation } from "@tanstack/react-router";
-import { BookOpen, Building2, ClipboardCheck, FileSpreadsheet, FolderKanban, LogOut, Mail, Menu, PencilRuler, ShieldCheck, UserRound, UsersRound, X } from "lucide-react";
+import { BookOpen, Building2, ClipboardCheck, FilePen, FileSpreadsheet, FolderKanban, House, LogOut, Mail, Menu, PencilRuler, ShieldCheck, UserRound, UsersRound, X } from "lucide-react";
+import { navigationPour, type CleIcone, type LienNav } from "../navigation";
 import { useDeconnexion, useMoi } from "../session";
 import { Chargement, cx } from "../ui/base";
 
-type Lien = { vers: string; libelle: string; icone: React.ReactNode; exact?: boolean };
+const ICONES: Record<CleIcone, (c: string) => React.ReactNode> = {
+  formations: (c) => <BookOpen className={c} />,
+  outils: (c) => <PencilRuler className={c} />,
+  apprenants: (c) => <UsersRound className={c} />,
+  convention: (c) => <FilePen className={c} />,
+  dossiers: (c) => <FolderKanban className={c} />,
+  bpf: (c) => <FileSpreadsheet className={c} />,
+  courriers: (c) => <Mail className={c} />,
+  candidatures: (c) => <ClipboardCheck className={c} />,
+  organisme: (c) => <Building2 className={c} />,
+};
 
-function liensPour(role: string, formateurValide: boolean): Lien[] {
-  const i = "size-[18px]";
-  if (role === "admin") {
-    return [
-      { vers: "/", libelle: "Tous les dossiers", icone: <FolderKanban className={i} />, exact: true },
-      { vers: "/admin/candidatures", libelle: "Candidatures", icone: <ClipboardCheck className={i} /> },
-      { vers: "/bpf", libelle: "BPF", icone: <FileSpreadsheet className={i} /> },
-      { vers: "/courriers", libelle: "Boîte d'envoi", icone: <Mail className={i} /> },
-      { vers: "/admin/organisme", libelle: "Organisme", icone: <Building2 className={i} /> },
-    ];
-  }
-  if (role === "formateur") {
-    if (!formateurValide) return [{ vers: "/candidature", libelle: "Ma candidature", icone: <ClipboardCheck className={i} /> }];
-    return [
-      { vers: "/", libelle: "Mes dossiers", icone: <FolderKanban className={i} />, exact: true },
-      { vers: "/formations", libelle: "Mes formations", icone: <BookOpen className={i} /> },
-      { vers: "/outils", libelle: "Outils pédagogiques", icone: <PencilRuler className={i} /> },
-      { vers: "/repertoire", libelle: "Apprenants", icone: <UsersRound className={i} /> },
-      { vers: "/bpf", libelle: "BPF", icone: <FileSpreadsheet className={i} /> },
-      { vers: "/courriers", libelle: "Boîte d'envoi", icone: <Mail className={i} /> },
-    ];
-  }
-  return [{ vers: "/", libelle: "Mes formations", icone: <BookOpen className={i} />, exact: true }];
+export function Icone({ cle, className = "size-[18px]" }: { cle: CleIcone; className?: string }) {
+  return <>{ICONES[cle](className)}</>;
 }
 
 const ROLES: Record<string, string> = { admin: "Organisme de formation", formateur: "Formateur", apprenant: "Apprenant" };
@@ -45,20 +35,28 @@ export function Cadre() {
   const acteur = moi.data?.acteur;
   if (!acteur) return <div className="px-8"><Chargement /></div>;
 
-  const liens = liensPour(acteur.role, acteur.formateur_valide);
+  // Menu principal : trois espaces pour le formateur (pédagogique, apprenant, formation) — voir navigation.ts.
+  const { accueil, espaces } = navigationPour(acteur.role, acteur.formateur_valide);
+  const lien = (l: LienNav, icone: React.ReactNode) => (
+    <Link
+      key={l.vers}
+      to={l.vers}
+      activeOptions={{ exact: l.exact ?? false }}
+      className="flex items-center gap-3 rounded-sm px-3 py-2 text-sm font-medium text-encre-2 transition-colors duration-150 hover:bg-papier-3 hover:text-encre"
+      activeProps={{ className: "!bg-accent-doux !text-accent-fort" }}
+    >
+      {icone}
+      {l.libelle}
+    </Link>
+  );
   const navigation = (
-    <nav className="flex flex-1 flex-col gap-0.5" aria-label="Navigation principale">
-      {liens.map((l) => (
-        <Link
-          key={l.vers}
-          to={l.vers}
-          activeOptions={{ exact: l.exact ?? false }}
-          className="flex items-center gap-3 rounded-sm px-3 py-2.5 text-sm font-medium text-encre-2 transition-colors duration-150 hover:bg-papier-3 hover:text-encre"
-          activeProps={{ className: "!bg-accent-doux !text-accent-fort" }}
-        >
-          {l.icone}
-          {l.libelle}
-        </Link>
+    <nav className="flex flex-1 flex-col gap-0.5 overflow-y-auto" aria-label="Navigation principale">
+      {accueil && lien(accueil, <House className="size-[18px]" aria-hidden />)}
+      {espaces.map((e) => (
+        <div key={e.cle} role="group" aria-label={e.titre} className="mt-3 first:mt-0">
+          {espaces.length > 1 && <p className="px-3 pb-1 text-[11px] font-semibold tracking-wide text-encre-3 uppercase">{e.titre}</p>}
+          <div className="flex flex-col gap-0.5">{e.liens.map((l) => lien(l, <Icone cle={l.icone} />))}</div>
+        </div>
       ))}
     </nav>
   );

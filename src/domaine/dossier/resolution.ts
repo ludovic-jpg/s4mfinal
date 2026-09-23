@@ -36,6 +36,8 @@ export function resoudreVariables(d: AgregatDossier, options: OptionsResolution 
     formation_objectifs_atteints: f.formation_objectifs_atteints,
     formation_niveau: f.formation_niveau,
     formation_prerequis: f.formation_prerequis,
+    formation_public_vise: f.formation_public_vise,
+    formation_programme: f.formation_programme,
     formation_duree_heures_total: formaterNombre(f.formation_duree_heures_total),
     formation_duree_jours: formaterNombre(f.formation_duree_jours),
     formation_duree_heures_presentiel: formaterNombre(f.formation_duree_heures_presentiel || null),

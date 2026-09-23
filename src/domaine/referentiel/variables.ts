@@ -147,6 +147,8 @@ export const DICTIONNAIRE: readonly VariableDef[] = [
   v("formation_objectifs_atteints", C.formation, "texte_long", "saisie"),
   v("formation_niveau", C.formation, "texte", "saisie"),
   v("formation_prerequis", C.formation, "texte_long", "saisie"),
+  v("formation_public_vise", C.formation, "texte_long", "saisie", { ajout: true }),
+  v("formation_programme", C.formation, "texte_long", "saisie", { ajout: true }),
   v("formation_duree_heures_total", C.formation, "nombre", "saisie"),
   v("formation_duree_jours", C.formation, "nombre", "saisie"),
   v("formation_duree_heures_presentiel", C.formation, "nombre", "saisie"),

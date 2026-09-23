@@ -40,3 +40,15 @@ sont vides. La sixième — signature de la convocation — suit le cahier des c
 | 18 | Satisfaction à chaud et à froid | Hors des deux espaces, renseignées en ligne, non bloquantes pour la complétude ; à froid : e-mail automatique à J+90 | Rattachement « à cadrer » selon le cahier des charges |
 | 19 | Complétude du dossier (étape D) | Pré-dossier, convention, accord, ODM, convocation, émargement, évaluation des acquis, attestation | `pieces.ts` → `requisePourCompletude` |
 | 20 | Mentions de la facture de l'OF | Pénalités de retard et indemnité forfaitaire de 40 € ajoutées (obligatoires entre professionnels), absentes de la matrice | À faire relire |
+
+## Choix du 23/09/2026 (cahier des charges oral), à confirmer
+
+| # | Sujet | Choix | Où le changer |
+|---|---|---|---|
+| 21 | **Qui déclare la demande de financement déposée ?** | L'apprenant, depuis son espace (« J'affirme avoir déposé… ») ; le formateur et l'OF le peuvent aussi (dépôt fait par l'entreprise) | `pipeline/transitions.ts` → `declarer_depot.acteurs` |
+| 22 | **Déclaration avant la signature de la convention** | Refusée, quel que soit le rôle : pas de demande de financement sans convention signée | `pipeline/transitions.ts` → `declarer_depot.garde` |
+| 23 | **Programme de formation (pièce `PRG`)** | Nouvelle pièce « 2 ter », annexe de la convention, transmise sans statut ; programme **obligatoire** avant soumission | `referentiel/pieces.ts`, `services/pipeline.ts` → `manquesAvantSoumission` |
+| 24 | **Apparition de la section « Accord de financement »** | Dans l'espace de l'apprenant : seulement après la déclaration de dépôt. Côté serveur, l'accord reste recevable dès la validation (un accord peut arriver avant la déclaration) | `domaine/parcours/apprenant.ts` |
+| 25 | **Fournisseur d'IA** | Claude (Anthropic), facultatif, désactivé par défaut ; seule la description de la formation est envoyée ; tout résultat est un brouillon relu par le formateur | `serveur/ports/ia.ts` (port remplaçable) |
+| 26 | **Ordre des onglets du générateur** | Celui du cahier écrit (F-DOS-02) : apprenant, entreprise, formation, modalité, financement. La dictée disait « apprenant, entreprise, puis financement, etc. » | `client/ecrans/NouveauDossier.tsx` |
+

@@ -23,6 +23,7 @@ import * as evaluations from "../services/evaluations";
 import * as organisme from "../services/organisme";
 import * as bpf from "../services/bpf";
 import * as rgpd from "../services/rgpd";
+import * as pedagogieIa from "../services/pedagogie-ia";
 import { executerAction } from "../services/pipeline";
 import { TAILLE_MAX_COFFRE, type FichierDepose } from "../services/fichiers";
 import { ErreurMetier, exigerRole, invalide, type Acteur, type CodeErreur, type Services } from "../services/socle";
@@ -202,6 +203,10 @@ export function creerApp(s: Services, options: { production?: boolean } = {}) {
   app.get("/api/coffre/:id/telecharger", async (c) => telechargement(c, await formations.telechargerDuCoffre(s, A(c), c.req.param("id"))));
   app.get("/api/coffres", async (c) => c.json(await formations.coffresDeLApprenant(s, A(c))));
 
+  // Espace pédagogique — propositions de l'IA : des brouillons, jamais enregistrés sans le formateur.
+  app.get("/api/ia/etat", (c) => c.json(pedagogieIa.etatIa(s, A(c))));
+  app.post("/api/ia/qcm", async (c) => c.json(await pedagogieIa.proposerQcm(s, A(c), await corps(c))));
+  app.post("/api/ia/programme", async (c) => c.json(await pedagogieIa.proposerProgramme(s, A(c), await corps(c))));
   app.get("/api/outils", async (c) => c.json(await formations.listerOutils(s, A(c))));
   app.post("/api/outils", async (c) => c.json(await formations.enregistrerOutil(s, A(c), await corps(c)), 201));
   app.put("/api/outils/:id", async (c) => c.json(await formations.enregistrerOutil(s, A(c), await corps(c), c.req.param("id"))));

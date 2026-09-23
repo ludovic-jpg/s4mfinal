@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { PencilRuler, Plus, Trash2 } from "lucide-react";
 import { api, ErreurApi, type Formation, type Outil } from "../api";
 import { Alerte, Bouton, Carte, Champ, Chargement, cx, EtatVide, Etiquette, Modale, Selecteur, TitrePage } from "../ui/base";
+import { BoutonIaQcm } from "./AssistantIa";
 
 type TypeOutil = "recueil" | "positionnement" | "acquis";
 const TYPES: Record<TypeOutil, { libelle: string; aide: string }> = {
@@ -61,6 +62,7 @@ function Editeur({ initial, formations, fermer }: { initial?: Outil; formations:
         </fieldset>
       ) : (
         <div className="space-y-4">
+          <BoutonIaQcm formationId={formationId} type={type as "positionnement" | "acquis"} recevoir={(q) => { setQuestions(q.questions); if (!titre.trim()) setTitre(q.titre); }} />
           {questions.map((q, i) => (
             <fieldset key={i} className="rounded-md border border-trait bg-papier-2/60 p-4">
               <div className="flex items-start gap-2">

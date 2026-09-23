@@ -140,6 +140,26 @@ la règle est appliquée.
 
 ## Ce qui n'est **pas** couvert
 
+## Cahier des charges oral du 23/09/2026
+
+Analyse complète : [`ANALYSE_23-09.md`](ANALYSE_23-09.md). Tests : **O** = `tests/integration/cdc-oral-23-09.test.ts`,
+**G** = `tests/integration/ia-perimetre.test.ts`, **N** = `src/client/navigation.test.ts`.
+
+| Réf. | Exigence (résumé) | Code | Test | |
+|---|---|---|---|---|
+| O-01 | Menu principal à trois espaces | `client/navigation.ts`, `ecrans/Accueil.tsx` (`MenuEspaces`), `ecrans/Cadre.tsx` | N, E « le menu principal présente les trois espaces » | ✅ |
+| O-02 | Espace pédagogique inspiré de Formatrix, avec IA | `services/pedagogie-ia.ts`, `ecrans/AssistantIa.tsx` | O 1 à 3 | 🟡 H25 |
+| O-03 | Générateur de conventions à onglets, pré-remplis, qu'on peut reprendre | `ecrans/NouveauDossier.tsx` | E « … se crée en cinq onglets » | 🟡 H26 |
+| O-04 | Page de l'apprenant qui commence par recueil et positionnement | `domaine/parcours/apprenant.ts`, `ecrans/Dossier.tsx` (`VueApprenant`) | D `parcours/apprenant.test.ts`, O 4 | ✅ |
+| O-05 | Dossier = recueil + positionnement + dossier enregistré | `domaine/pipeline/transitions.ts` (RG-02), `services/pipeline.ts` (`manquesAvantSoumission`) | O 5 | ✅ |
+| O-06 | Validation par l'équipe administrative | `domaine/pipeline/transitions.ts` (`valider_dossier`) | O 7 | ✅ |
+| O-07 | Convention, planning ET parcours (programme) remis pour le financement | `referentiel/pieces.ts` (`PRG`), `gabarits/PRG.html`, `drizzle/0001_programme_annexe.sql` | O 6 et 8, P « RG-04… » | 🟡 H23 |
+| O-08 | Télécharger, signer en ligne, redéposer → « Validé » | `services/retours.ts` | O 10, P « F-COM-06 » | ✅ |
+| O-09 | « J'affirme avoir déposé la demande » par l'apprenant ; la section change de couleur | `transitions.ts` (`declarer_depot`), `services/pipeline.ts` (`NOTIFIER_DEPOT_DECLARE`), `ecrans/Dossier.tsx` (`DeclarationDepot`) | O 9 et 11, D, E « apprenante : affirme avoir déposé… » | 🟡 H21, H22 |
+| O-10 | Section « Accord de financement » produite automatiquement | `domaine/parcours/apprenant.ts` | O 12, D, E | 🟡 H24 |
+| O-11 | Accord déposable par l'apprenant, le formateur et l'OF | `referentiel/pieces.ts` (`ACC.valideePar`), `services/retours.ts` | O 13 et 14 | ✅ |
+| O-12 | IA seulement pour la pédagogie ; le reste exact | `ports/ia.ts`, `services/pedagogie-ia.ts`, `domaine/pedagogie/propositions.ts` | G (4 tests), O 15, D `propositions.test.ts` | ✅ |
+
 Par honnêteté, ce que cette version ne fait pas : dépôt sur Google Drive (F-ARCH-02, remplacé par le disque local
 derrière un port), signature qualifiée au sens eIDAS (H12), envoi SMS, paiement en ligne, import des dossiers de
 l'ancienne plateforme. Chacun de ces points a un emplacement prévu, décrit dans

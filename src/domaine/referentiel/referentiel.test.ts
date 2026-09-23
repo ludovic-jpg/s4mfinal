@@ -129,11 +129,13 @@ describe("nomenclature des pièces", () => {
     expect(new Set(NOMENCLATURE.map((d) => d.code)).size).toBe(NOMENCLATURE.length);
   });
 
-  it("reproduit l'espace Communication avec l'Apprenant du cahier des charges (6.4.2)", () => {
+  it("reproduit l'espace Communication avec l'Apprenant du cahier des charges (6.4.2), programme en annexe compris", () => {
+    // « 2 ter Programme » : ajout du 23/09/2026 — la convention renvoie à un programme « en annexe » qui n'existait pas.
     expect(piecesDeLEspace("apprenant").map((d) => `${d.ordre} ${d.libelle}`)).toEqual([
       "1 Pré-dossier",
       "2 Convention de formation",
       "2 bis Planning",
+      "2 ter Programme de formation",
       "3 Accord de financement",
       "4 Convocation",
       "5 Feuille d'émargement",
