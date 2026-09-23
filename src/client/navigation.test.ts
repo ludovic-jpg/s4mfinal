@@ -2,7 +2,7 @@
 import { describe, expect, it } from "vitest";
 import { ESPACES_FORMATEUR, navigationPour } from "./navigation";
 
-const ROUTES_DECLAREES = ["/", "/dossiers", "/dossiers/nouveau", "/formations", "/outils", "/repertoire", "/candidature", "/admin/candidatures", "/admin/organisme", "/bpf", "/courriers"];
+const ROUTES_DECLAREES = ["/", "/dossiers", "/dossiers/nouveau", "/formations", "/outils", "/repertoire", "/candidature", "/admin/candidatures", "/admin/organisme", "/bpf", "/courriers", "/coffres", "/positionnements", "/profil", "/archives"];
 
 describe("menu du formateur", () => {
   it("compte exactement trois espaces, dans l'ordre : pédagogique, apprenant, formation", () => {
@@ -16,6 +16,15 @@ describe("menu du formateur", () => {
     expect(ou("/formations")).toBe("pedagogique");
     expect(ou("/outils")).toBe("pedagogique");
     expect(ou("/repertoire")).toBe("apprenant");
+    // « Modification 1 » (23/09/2026) : coffre-fort par parcours et positionnements
+    expect(ou("/coffres")).toBe("pedagogique");
+    expect(ou("/positionnements")).toBe("apprenant");
+  });
+
+  it("donne toujours accès au profil et aux archives (« Modification 1 »)", () => {
+    const nav = navigationPour("formateur", true);
+    expect(nav.personnels.map((l) => l.vers)).toEqual(["/profil", "/archives"]);
+    for (const l of nav.personnels) expect(ROUTES_DECLAREES).toContain(l.vers);
   });
 
   it("ne mène qu'à des écrans qui existent, et chaque écran n'apparaît qu'une fois", () => {

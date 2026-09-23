@@ -39,6 +39,7 @@ Ouvrez <http://localhost:3001>. Au premier démarrage, la base est vide : un **j
 | Formatrice (candidature validée) | `formatrice@demo.example` | `demonstration-s4m` |
 | Apprenante | `apprenante@demo.example` | `demonstration-s4m` |
 | Candidat formateur (à valider) | `candidat@demo.example` | `demonstration-s4m` |
+| **Formateur pilote (Ludovic)** — espace vide, candidature validée | **`ludoalbisser@gmail.com`** | **`1234ludo`** |
 
 Pour repartir de zéro : arrêtez le serveur, supprimez le dossier `donnees/`, relancez.
 Pour partir d'une base **vide**, sans données de démonstration : voir « Passer en réel » plus bas.
@@ -68,6 +69,24 @@ L'IA ne sert **que** dans l'espace pédagogique : un test de garde (`tests/integ
 la CI si elle est branchée ailleurs. Conventions, pièces et montants sont produits sans IA, à l'octet près.
 
 Pour lancer, tester et mettre en ligne pas à pas : [`docs/GUIDE_LANCEMENT.md`](docs/GUIDE_LANCEMENT.md).
+
+### « Modification 1 » du 23/09/2026
+
+État des lieux et listing des 21 manques traités : [`docs/MODIFICATION_1_23-09.md`](docs/MODIFICATION_1_23-09.md) ·
+scénario de recette raconté, avec la lecture Qualiopi : [`docs/RECETTE_NARRATIVE.md`](docs/RECETTE_NARRATIVE.md) ·
+manquements, points en suspens et to-do : [`docs/SUITE_ET_TODO.md`](docs/SUITE_ET_TODO.md).
+
+- **Générateur de parcours** (titre, heures, jours, tarif, nombre de modules → modules complets), par une trame
+  pédagogique toujours disponible ou par l'IA ; même principe pour le **test de positionnement**, l'**évaluation des
+  acquis** et les **supports PPTX (20 diapositives par module)**.
+- **Coffre-fort pédagogique par parcours** : partie pédagogique (supports, tests, programme) et administrative
+  (documents qualité, positionnements signés, pièces de chaque dossier), dépôt et téléchargement, ZIP.
+- **Positionnement avant dossier** : invitation par e-mail, page dédiée sans compte, recueil + test, date, signature
+  tracée, PDF téléchargeable par l'apprenant, le formateur et l'organisme ; repris automatiquement dans le dossier.
+- **Apprenant + entreprise** créés d'un seul geste ; **partie financière** et tous les champs de la convention
+  modifiables ; **menus déroulants** partout où c'est possible.
+- **Profil et candidature** toujours accessibles, justificatifs avec échéance.
+- **Archives, corbeille, historique des versions, brouillons, sauvegarde** : rien ne se perd, tout réapparaît.
 
 ## Ce que fait l'application, module par module
 

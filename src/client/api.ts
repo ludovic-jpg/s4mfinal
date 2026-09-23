@@ -12,6 +12,9 @@ import type { lireBpf } from "@/serveur/services/bpf";
 import type { apercuSuppression } from "@/serveur/services/rgpd";
 import type { lireOrganisme } from "@/serveur/services/organisme";
 import type { Acteur } from "@/serveur/services/socle";
+import type { listerCoffresParcours, lireCoffreParcours } from "@/serveur/services/coffre";
+import type { listerPositionnements, lirePositionnementPublic } from "@/serveur/services/positionnements";
+import type { archivesEtCorbeille } from "@/serveur/services/sauvegarde";
 import type { courrier } from "@/serveur/bd/schema";
 
 /** Ce que devient un type une fois passé par JSON : les dates sont des chaînes. */
@@ -38,6 +41,11 @@ export type VueBpf = Reponse<typeof lireBpf>;
 export type ApercuSuppression = Reponse<typeof apercuSuppression>;
 export type Organisme = Reponse<typeof lireOrganisme>;
 export type Courrier = Json<typeof courrier.$inferSelect>;
+export type CarteCoffre = Reponse<typeof listerCoffresParcours>[number];
+export type VueCoffre = Reponse<typeof lireCoffreParcours>;
+export type LignePositionnement = Reponse<typeof listerPositionnements>[number];
+export type PositionnementPublic = Reponse<typeof lirePositionnementPublic>;
+export type Archives = Reponse<typeof archivesEtCorbeille>;
 export type Moi = { acteur: Json<Acteur> | null; organisme?: { nom: string; couleur: string } };
 
 export class ErreurApi extends Error {

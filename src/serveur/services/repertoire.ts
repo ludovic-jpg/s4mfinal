@@ -1,5 +1,5 @@
 /** Répertoires réutilisables d'un dossier à l'autre : entreprises clientes et fiches Apprenant (F-COM-01, F-COM-02). */
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, isNotNull, isNull } from "drizzle-orm";
 import { z } from "zod";
 import { entrepriseCliente, stagiaire } from "../bd/schema";
 import { nouvelId } from "../ports/divers";
@@ -18,6 +18,7 @@ export const SchemaEntreprise = z.object({
   entreprise_representant_nom: z.string().trim().max(100).default(""),
   entreprise_representant_telephone: z.string().trim().max(30).default(""),
   entreprise_representant_email: email.default(""),
+  entreprise_opco: z.string().trim().max(200).default(""),
 });
 
 // Champs alignés sur les variables `stagiaire_*`.
@@ -31,9 +32,16 @@ export const SchemaStagiaire = z.object({
   entreprise_id: z.string().nullable().default(null),
 });
 
-export async function listerEntreprises(s: Services, acteur: Acteur) {
+/** « Modification 1 » : en créant un apprenant, on peut créer son entreprise dans le même geste. */
+const SchemaStagiaireAvecEntreprise = SchemaStagiaire.extend({ nouvelle_entreprise: SchemaEntreprise.nullable().default(null) });
+
+export async function listerEntreprises(s: Services, acteur: Acteur, options: { archives?: boolean } = {}) {
   const formateur_id = exigerFormateurValide(acteur);
-  return s.bd.select().from(entrepriseCliente).where(eq(entrepriseCliente.formateur_id, formateur_id)).orderBy(asc(entrepriseCliente.entreprise_nom));
+  return s.bd
+    .select()
+    .from(entrepriseCliente)
+    .where(and(eq(entrepriseCliente.formateur_id, formateur_id), options.archives ? isNotNull(entrepriseCliente.archive_le) : isNull(entrepriseCliente.archive_le)))
+    .orderBy(asc(entrepriseCliente.entreprise_nom));
 }
 
 export async function lireEntreprise(s: Services, acteur: Acteur, id: string) {
@@ -56,9 +64,13 @@ export async function enregistrerEntreprise(s: Services, acteur: Acteur, donnees
   return lireEntreprise(s, acteur, nouveauId);
 }
 
-export async function listerStagiaires(s: Services, acteur: Acteur) {
+export async function listerStagiaires(s: Services, acteur: Acteur, options: { archives?: boolean } = {}) {
   const formateur_id = exigerFormateurValide(acteur);
-  return s.bd.select().from(stagiaire).where(eq(stagiaire.formateur_id, formateur_id)).orderBy(asc(stagiaire.stagiaire_nom), asc(stagiaire.stagiaire_prenom));
+  return s.bd
+    .select()
+    .from(stagiaire)
+    .where(and(eq(stagiaire.formateur_id, formateur_id), options.archives ? isNotNull(stagiaire.archive_le) : isNull(stagiaire.archive_le)))
+    .orderBy(asc(stagiaire.stagiaire_nom), asc(stagiaire.stagiaire_prenom));
 }
 
 export async function lireStagiaire(s: Services, acteur: Acteur, id: string) {
@@ -70,7 +82,9 @@ export async function lireStagiaire(s: Services, acteur: Acteur, id: string) {
 
 export async function enregistrerStagiaire(s: Services, acteur: Acteur, donnees: unknown, id?: string) {
   const formateur_id = exigerFormateurValide(acteur);
-  const valeurs = id ? validerPartiel(SchemaStagiaire, donnees) : SchemaStagiaire.parse(donnees);
+  const { nouvelle_entreprise, ...reste } = id ? validerPartiel(SchemaStagiaireAvecEntreprise, donnees) : SchemaStagiaireAvecEntreprise.parse(donnees);
+  const valeurs = reste as Partial<z.infer<typeof SchemaStagiaire>>;
+  if (nouvelle_entreprise) valeurs.entreprise_id = (await enregistrerEntreprise(s, acteur, nouvelle_entreprise)).id;
   if (valeurs.entreprise_id) await lireEntreprise(s, acteur, valeurs.entreprise_id);
   if (id) {
     await lireStagiaire(s, acteur, id);
@@ -80,4 +94,16 @@ export async function enregistrerStagiaire(s: Services, acteur: Acteur, donnees:
   const nouveauId = nouvelId();
   await s.bd.insert(stagiaire).values({ id: nouveauId, of_id: acteur.of_id, formateur_id, ...(valeurs as z.infer<typeof SchemaStagiaire>), cree_le: s.horloge.maintenant() });
   return lireStagiaire(s, acteur, nouveauId);
+}
+
+/** Archiver une fiche la retire des listes sans rien effacer (elle reste liée à ses dossiers) ; elle se restaure. */
+export async function archiverFiche(s: Services, acteur: Acteur, type: "stagiaire" | "entreprise", id: string, archiver: boolean) {
+  const quand = archiver ? s.horloge.maintenant() : null;
+  if (type === "stagiaire") {
+    await lireStagiaire(s, acteur, id);
+    await s.bd.update(stagiaire).set({ archive_le: quand }).where(eq(stagiaire.id, id));
+  } else {
+    await lireEntreprise(s, acteur, id);
+    await s.bd.update(entrepriseCliente).set({ archive_le: quand }).where(eq(entrepriseCliente.id, id));
+  }
 }

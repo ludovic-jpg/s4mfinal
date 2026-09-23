@@ -97,6 +97,16 @@ export const formateur = pgTable("formateur", {
   formateur_iban: t("formateur_iban"),
   formateur_bic: t("formateur_bic"),
   parcours: t("parcours"),
+  // Profil étendu (23/09/2026, « Modification 1 ») : sert au choix des formateurs et à l'indicateur Qualiopi 21-22.
+  formateur_statut_juridique: t("formateur_statut_juridique"),
+  formateur_domaines: jsonb("formateur_domaines").$type<string[]>().notNull().default(sql`'[]'::jsonb`),
+  formateur_zones: t("formateur_zones"),
+  formateur_langues: t("formateur_langues"),
+  formateur_tarif_journalier: integer("formateur_tarif_journalier"),
+  formateur_bio: t("formateur_bio"),
+  formateur_linkedin: t("formateur_linkedin"),
+  formateur_disponibilites: t("formateur_disponibilites"),
+  formateur_assurance_rc: t("formateur_assurance_rc"),
   statut_candidature: text("statut_candidature", { enum: ["brouillon", "soumise", "validee", "refusee"] }).notNull().default("brouillon"),
   motif_decision: t("motif_decision"),
   soumise_le: timestamp("soumise_le", { withTimezone: true }),
@@ -112,6 +122,8 @@ export const pieceFormateur = pgTable("piece_formateur", {
   nom_fichier: text("nom_fichier").notNull(),
   chemin: text("chemin").notNull(),
   taille: integer("taille").notNull(),
+  /** Date de fin de validité (attestation URSSAF, RC Pro…) : l'écran signale les pièces à renouveler. */
+  expire_le: t("expire_le"),
   cree_le: creeLe(),
 });
 
@@ -128,7 +140,10 @@ export const entrepriseCliente = pgTable("entreprise_cliente", {
   entreprise_representant_nom: t("entreprise_representant_nom"),
   entreprise_representant_telephone: t("entreprise_representant_telephone"),
   entreprise_representant_email: t("entreprise_representant_email"),
+  /** Opérateur de compétences habituel : pré-remplit le financeur des dossiers. */
+  entreprise_opco: t("entreprise_opco"),
   cree_le: creeLe(),
+  archive_le: timestamp("archive_le", { withTimezone: true }),
 });
 
 export const stagiaire = pgTable("stagiaire", {
@@ -145,6 +160,7 @@ export const stagiaire = pgTable("stagiaire", {
   stagiaire_poste: t("stagiaire_poste"),
   stagiaire_situation_handicap: t("stagiaire_situation_handicap"),
   cree_le: creeLe(),
+  archive_le: timestamp("archive_le", { withTimezone: true }),
 });
 
 export const formation = pgTable("formation", {
@@ -161,8 +177,32 @@ export const formation = pgTable("formation", {
   formation_prix_unitaire_ht: integer("formation_prix_unitaire_ht"),
   programme: t("programme"),
   public_vise: t("public_vise"),
+  // ——— Ajouts du 23/09/2026 (« Modification 1 ») : parcours en modules et champs de convention ———
+  formation_nb_modules: integer("formation_nb_modules"),
+  /** Parcours découpé en modules (voir domaine/pedagogie/parcours.ts). */
+  formation_modules: jsonb("formation_modules").notNull().default(sql`'[]'::jsonb`),
+  formation_duree_heures_presentiel: real("formation_duree_heures_presentiel"),
+  formation_duree_heures_distanciel: real("formation_duree_heures_distanciel"),
+  formation_prix_groupe_ht: integer("formation_prix_groupe_ht"),
+  formation_effectif_min: integer("formation_effectif_min"),
+  formation_effectif_max: integer("formation_effectif_max"),
+  formation_lieu_nom: t("formation_lieu_nom"),
+  formation_lieu_adresse: t("formation_lieu_adresse"),
+  formation_lieu_siret: t("formation_lieu_siret"),
+  formation_lien_visio: t("formation_lien_visio"),
+  mode_financement: text("mode_financement", { enum: ["opco", "faf", "entreprise", "fonds_propres"] }).notNull().default("opco"),
+  formation_opco: t("formation_opco"),
+  formateur_cout_horaire: integer("formateur_cout_horaire"),
+  formation_domaine: t("formation_domaine"),
+  formation_moyens_pedagogiques: t("formation_moyens_pedagogiques"),
+  formation_modalites_evaluation: t("formation_modalites_evaluation"),
+  formation_modalites_sanction: t("formation_modalites_sanction"),
+  formation_accessibilite: t("formation_accessibilite"),
+  formation_delai_acces: t("formation_delai_acces"),
   archivee: boolean("archivee").notNull().default(false),
+  archivee_le: timestamp("archivee_le", { withTimezone: true }),
   cree_le: creeLe(),
+  maj_le: timestamp("maj_le", { withTimezone: true }).notNull().defaultNow(),
 });
 
 export const modeleOutil = pgTable("modele_outil", {
@@ -174,6 +214,9 @@ export const modeleOutil = pgTable("modele_outil", {
   titre: t("titre"),
   contenu: jsonb("contenu").notNull(),
   cree_le: creeLe(),
+  maj_le: timestamp("maj_le", { withTimezone: true }).notNull().defaultNow(),
+  /** Archivé (corbeille) : masqué des listes, restaurable. */
+  archive_le: timestamp("archive_le", { withTimezone: true }),
 });
 
 export const coffreFichier = pgTable("coffre_fichier", {
@@ -188,6 +231,13 @@ export const coffreFichier = pgTable("coffre_fichier", {
   type_mime: t("type_mime"),
   /** Seuls les éléments marqués « partageable » sont ouverts à l'apprenant (hypothèse, point ouvert n° 5). */
   partageable: boolean("partageable").notNull().default(true),
+  /** Rubrique du coffre-fort : support, exercice, évaluation, ressource, administratif… */
+  categorie: text("categorie").notNull().default("support"),
+  /** « depot » (chargé par le formateur) ou « genere » (produit par l'application : supports PPTX, programme…). */
+  origine: text("origine").notNull().default("depot"),
+  description: t("description"),
+  /** Corbeille : un fichier supprimé reste restaurable jusqu'à sa purge définitive. */
+  supprime_le: timestamp("supprime_le", { withTimezone: true }),
   cree_le: creeLe(),
 });
 
@@ -371,6 +421,8 @@ export const courrier = pgTable("courrier", {
   id: id(),
   of_id: text("of_id").notNull().references(() => organismeFormation.id),
   dossier_id: text("dossier_id").references(() => dossierFormation.id, { onDelete: "cascade" }),
+  /** Courriels hors dossier (invitation au positionnement…) : rattachés au formateur pour sa boîte d'envoi. */
+  formateur_id: text("formateur_id"),
   type: text("type").notNull(),
   destinataire: text("destinataire").notNull(),
   sujet: text("sujet").notNull(),
@@ -390,4 +442,63 @@ export const compteur = pgTable(
     valeur: integer("valeur").notNull().default(0),
   },
   (x) => [uniqueIndex("compteur_unique").on(x.of_id, x.cle)],
+);
+
+
+/**
+ * Versions successives d'un objet pédagogique (formation, outil) : chaque enregistrement garde l'état précédent,
+ * que le formateur peut consulter et restaurer (« faire réapparaître »). Traçabilité des évolutions de programme.
+ */
+export const versionObjet = pgTable(
+  "version_objet",
+  {
+    id: id(),
+    of_id: text("of_id").notNull().references(() => organismeFormation.id),
+    type: text("type", { enum: ["formation", "outil"] }).notNull(),
+    objet_id: text("objet_id").notNull(),
+    libelle: t("libelle"),
+    snapshot: jsonb("snapshot").notNull(),
+    auteur_id: text("auteur_id"),
+    cree_le: creeLe(),
+  },
+  (x) => [index("version_objet_idx").on(x.type, x.objet_id)],
+);
+
+/**
+ * Invitation d'un apprenant à se positionner sur un parcours, AVANT tout dossier (« Modification 1 ») :
+ * e-mail automatique, page dédiée par lien à usage personnel, recueil des besoins + test de positionnement,
+ * date, signature tracée, PDF archivé et téléchargeable par l'apprenant, le formateur et l'organisme.
+ */
+export const positionnement = pgTable(
+  "positionnement",
+  {
+    id: id(),
+    of_id: text("of_id").notNull().references(() => organismeFormation.id),
+    formateur_id: text("formateur_id").notNull().references(() => formateur.id),
+    formation_id: text("formation_id").references(() => formation.id, { onDelete: "set null" }),
+    stagiaire_id: text("stagiaire_id").notNull().references(() => stagiaire.id),
+    /** Empreinte SHA-256 du jeton du lien : le jeton lui-même n'est jamais stocké. */
+    jeton_hash: text("jeton_hash").notNull().unique(),
+    statut: text("statut", { enum: ["envoye", "en_cours", "complet"] }).notNull().default("envoye"),
+    message: t("message"),
+    // Instantanés pris à l'envoi : modifier le catalogue ensuite ne change pas ce que l'apprenant a reçu.
+    formation_titre: t("formation_titre"),
+    questionnaire: jsonb("questionnaire"),
+    questions_recueil: jsonb("questions_recueil").notNull().default(sql`'[]'::jsonb`),
+    brouillon: jsonb("brouillon"),
+    recueil: jsonb("recueil"),
+    reponses: jsonb("reponses"),
+    score: real("score"),
+    date_reponse: t("date_reponse"),
+    signature_png: t("signature_png"),
+    signature_lieu: t("signature_lieu"),
+    signe_le: timestamp("signe_le", { withTimezone: true }),
+    chemin_pdf: text("chemin_pdf"),
+    empreinte_pdf: text("empreinte_pdf"),
+    envoye_le: timestamp("envoye_le", { withTimezone: true }),
+    expire_le: timestamp("expire_le", { withTimezone: true }).notNull(),
+    archive_le: timestamp("archive_le", { withTimezone: true }),
+    cree_le: creeLe(),
+  },
+  (x) => [index("positionnement_formateur_idx").on(x.formateur_id)],
 );

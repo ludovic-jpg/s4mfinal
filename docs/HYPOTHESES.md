@@ -52,3 +52,17 @@ sont vides. La sixième — signature de la convocation — suit le cahier des c
 | 25 | **Fournisseur d'IA** | Claude (Anthropic), facultatif, désactivé par défaut ; seule la description de la formation est envoyée ; tout résultat est un brouillon relu par le formateur | `serveur/ports/ia.ts` (port remplaçable) |
 | 26 | **Ordre des onglets du générateur** | Celui du cahier écrit (F-DOS-02) : apprenant, entreprise, formation, modalité, financement. La dictée disait « apprenant, entreprise, puis financement, etc. » | `client/ecrans/NouveauDossier.tsx` |
 
+
+## Choix du 23/09/2026 (« Modification 1 »), à confirmer
+
+| # | Sujet | Choix | Où le changer |
+|---|---|---|---|
+| 27 | **Positionnement sans compte** | Lien personnel de 30 jours (jeton aléatoire, seule son empreinte est stockée), renouvelé à chaque relance ; signature électronique simple | `services/positionnements.ts` |
+| 28 | **Trame d'auto-positionnement** | Une question par objectif, échelle à 4 niveaux ; la « bonne réponse » est la maîtrise. Pour les acquis, même principe, à compléter par des questions de connaissances | `domaine/pedagogie/parcours.ts` |
+| 29 | **Reprise du positionnement dans le dossier** | Automatique à la création du dossier, seulement si le test du dossier est identique à celui signé | `positionnements.ts` → `reprendrePositionnements` |
+| 30 | **Identité du formateur après validation** | Nom et prénom figés (contrats signés) ; le reste du profil reste modifiable, et chaque modification est journalisée | `candidatures.ts` → `CHAMPS_FIGES_APRES_VALIDATION` |
+| 31 | **Conservation des positionnements non suivis d'un dossier** | Aucune purge automatique (proposition : 12 mois) | à coder (`services/taches.ts`) |
+| 32 | **Accès aux coffres-forts** | Formateur : lecture et écriture ; organisme : lecture ; apprenant : fichiers « partagés » après l'accord (RG-08 inchangée) | `services/coffre.ts`, `formations.ts` |
+| 33 | **Support régénéré** | L'ancien PPTX du même module passe à la corbeille (restaurable) | `pedagogie-ia.ts` → `enregistrerSupport` |
+| 34 | **IA : recherche web** | Désactivée par défaut (`IA_RECHERCHE_WEB=non`) ; les durées des modules ne sont jamais demandées à l'IA, elles sont imposées | `ports/ia.ts`, `config.ts` |
+| 35 | **Compte pilote** | `ludoalbisser@gmail.com` créé au démarrage s'il manque, candidature validée, mot de passe de 8 caractères toléré pour ce seul compte ; jamais créé si l'adresse sert déjà à un autre rôle | `.env` → `COMPTE_PILOTE_*`, `bd/amorce.ts` |

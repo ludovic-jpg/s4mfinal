@@ -9,7 +9,9 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, BellRing, Check, Download, FileX2, Lock, MailPlus, PenLine, Plus, Trash2, Unlock } from "lucide-react";
 import { api, dateFr, dateLongue, euros, heuresFr, instantFr, octets, type CoffreApprenant, type Dossier, type SeanceEmargement } from "../api";
 import { useActeur } from "../session";
-import { Alerte, Bouton, Carte, Champ, Chargement, cx, DepotFichier, Etiquette, ListeManques, Modale, Onglets, ZoneTexte, useNotifier } from "../ui/base";
+import { Alerte, Bouton, Carte, Champ, Chargement, cx, DepotFichier, Etiquette, ListeManques, Modale, Onglets, Selecteur, ZoneTexte, useNotifier } from "../ui/base";
+import { ListeOuAutre } from "../ui/champs";
+import { FINANCEURS, MODALITES as LISTE_MODALITES, MODES_FINANCEMENT, NIVEAUX } from "@/domaine/pedagogie/listes";
 import { ZoneDeTrace } from "../ui/Signature";
 import { AutresPieces, EspaceCommunication, ListePieces, useRafraichirDossier } from "./DossierPieces";
 import { Questionnaires } from "./DossierQuestionnaires";
@@ -350,6 +352,17 @@ function EditionDossier({ d }: { d: Dossier }) {
     signature_lieu: f.signature_lieu,
     formation_objectifs: f.formation_objectifs,
     formation_programme: f.formation_programme,
+    // « Modification 1 » : tous les champs de la convention, dont la partie financière, modifiables jusqu'à la validation.
+    formation_titre: f.formation_titre,
+    formation_niveau: f.formation_niveau,
+    formation_prerequis: f.formation_prerequis,
+    formation_public_vise: f.formation_public_vise,
+    formation_modalite: f.formation_modalite,
+    formation_lieu_siret: f.formation_lieu_siret,
+    heures_presentiel: f.formation_duree_heures_presentiel ?? "",
+    heures_distanciel: f.formation_duree_heures_distanciel ?? "",
+    cout_horaire: f.formateur_cout_horaire === null ? "" : String(f.formateur_cout_horaire / 100),
+    mode_financement: d.mode_financement,
   });
   const [seances, setSeances] = useState(d.seances.map((s) => ({ date: s.date, heure_debut: s.heure_debut, heure_fin: s.heure_fin })));
   const champ = (cle: keyof typeof v) => ({ value: v[cle], onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setV({ ...v, [cle]: e.target.value }) });
@@ -357,8 +370,16 @@ function EditionDossier({ d }: { d: Dossier }) {
 
   const enregistrer = useMutation({
     mutationFn: async () => {
-      const { prix, ...reste } = v;
-      await api.patch(`/dossiers/${d.id}`, { ...reste, formation_duree_heures_total: nombre(v.formation_duree_heures_total), formation_duree_jours: nombre(v.formation_duree_jours), formation_prix_unitaire_ht: prix === "" ? null : Math.round(nombre(prix)! * 100) });
+      const { prix, heures_presentiel, heures_distanciel, cout_horaire, ...reste } = v;
+      await api.patch(`/dossiers/${d.id}`, {
+        ...reste,
+        formation_duree_heures_total: nombre(v.formation_duree_heures_total),
+        formation_duree_jours: nombre(v.formation_duree_jours),
+        formation_prix_unitaire_ht: prix === "" ? null : Math.round(nombre(prix)! * 100),
+        formation_duree_heures_presentiel: v.formation_modalite === "presentiel" ? nombre(v.formation_duree_heures_total) : v.formation_modalite === "distanciel" ? null : nombre(heures_presentiel),
+        formation_duree_heures_distanciel: v.formation_modalite === "distanciel" ? nombre(v.formation_duree_heures_total) : v.formation_modalite === "presentiel" ? null : nombre(heures_distanciel),
+        formateur_cout_horaire: String(cout_horaire).trim() === "" ? null : Math.round(nombre(cout_horaire)! * 100),
+      });
       await api.put(`/dossiers/${d.id}/seances`, { seances: seances.filter((s) => s.date) });
     },
     onSuccess: async () => {
@@ -375,6 +396,13 @@ function EditionDossier({ d }: { d: Dossier }) {
           <h2 className="text-base font-semibold">Le dossier</h2>
           <p className="mt-0.5 text-[13px] text-encre-3">Pré-rempli depuis votre catalogue et la fiche de l'entreprise. Ce que vous modifiez ici ne change que ce dossier.</p>
         </div>
+        <Champ libelle="Intitulé (figure sur la convention)" {...champ("formation_titre")} />
+        <div className="grid gap-4 sm:grid-cols-2">
+          <ListeOuAutre libelle="Niveau" options={NIVEAUX} value={v.formation_niveau} onChange={(x) => setV({ ...v, formation_niveau: x })} />
+          <Selecteur libelle="Modalité" value={v.formation_modalite} onChange={(e) => setV({ ...v, formation_modalite: e.target.value as typeof v.formation_modalite })}>
+            {LISTE_MODALITES.map((m) => <option key={m.valeur} value={m.valeur}>{m.libelle}</option>)}
+          </Selecteur>
+        </div>
         <ZoneTexte libelle="Objectifs de la formation" rows={3} {...champ("formation_objectifs")} />
         <ZoneTexte libelle="Programme détaillé" rows={4} aide="Repris de la formation ; il devient l'annexe « Programme de formation » de la convention." {...champ("formation_programme")} />
         <div className="grid gap-4 sm:grid-cols-2">
@@ -383,18 +411,36 @@ function EditionDossier({ d }: { d: Dossier }) {
           <Champ libelle="Durée totale (heures)" inputMode="decimal" {...champ("formation_duree_heures_total")} />
           <Champ libelle="Nombre de jours" inputMode="decimal" {...champ("formation_duree_jours")} />
         </div>
-        {f.formation_modalite !== "distanciel" && (
+        {v.formation_modalite === "mixte" && (
           <div className="grid gap-4 sm:grid-cols-2">
-            <Champ libelle="Lieu de formation" {...champ("formation_lieu_nom")} />
-            <Champ libelle="Adresse du lieu" {...champ("formation_lieu_adresse")} />
+            <Champ libelle="Dont heures en présentiel" inputMode="decimal" {...champ("heures_presentiel")} />
+            <Champ libelle="Dont heures à distance" inputMode="decimal" {...champ("heures_distanciel")} />
           </div>
         )}
-        {f.formation_modalite !== "presentiel" && <Champ libelle="Lien de connexion à distance" type="url" placeholder="https://…" {...champ("formation_lien_visio")} />}
-        <div className="grid gap-4 sm:grid-cols-3">
-          <Champ libelle="Prix unitaire HT (€)" inputMode="decimal" aide="Par stagiaire." {...champ("prix")} />
-          <Champ libelle="Financeur (OPCO, FAF…)" {...champ("formation_opco")} />
-          <Champ libelle="Convention signée à" placeholder="Ville" {...champ("signature_lieu")} />
-        </div>
+        {v.formation_modalite !== "distanciel" && (
+          <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)_minmax(0,0.8fr)]">
+            <Champ libelle="Lieu de formation" {...champ("formation_lieu_nom")} />
+            <Champ libelle="Adresse du lieu" {...champ("formation_lieu_adresse")} />
+            <Champ libelle="SIRET du lieu" inputMode="numeric" {...champ("formation_lieu_siret")} />
+          </div>
+        )}
+        {v.formation_modalite !== "presentiel" && <Champ libelle="Lien de connexion à distance" type="url" placeholder="https://…" {...champ("formation_lien_visio")} />}
+        <ZoneTexte libelle="Public visé" rows={2} {...champ("formation_public_vise")} />
+        <ZoneTexte libelle="Prérequis" rows={2} {...champ("formation_prerequis")} />
+        <fieldset className="space-y-4 rounded-md border border-trait p-4">
+          <legend className="px-1 text-[13px] font-semibold text-encre-2">Partie financière de la convention</legend>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Selecteur libelle="Mode de financement" value={v.mode_financement} onChange={(e) => setV({ ...v, mode_financement: e.target.value as typeof v.mode_financement })}>
+              {MODES_FINANCEMENT.map((m) => <option key={m.valeur} value={m.valeur}>{m.libelle}</option>)}
+            </Selecteur>
+            <ListeOuAutre libelle="Financeur (OPCO, FAF…)" options={FINANCEURS} value={v.formation_opco} onChange={(x) => setV({ ...v, formation_opco: x })} />
+          </div>
+          <div className="grid gap-4 sm:grid-cols-3">
+            <Champ libelle="Prix unitaire HT (€)" inputMode="decimal" aide="Par stagiaire." {...champ("prix")} />
+            <Champ libelle="Coût horaire formateur (€ HT)" inputMode="decimal" aide="Facultatif." {...champ("cout_horaire")} />
+            <Champ libelle="Convention signée à" placeholder="Ville" {...champ("signature_lieu")} />
+          </div>
+        </fieldset>
 
         <fieldset>
           <legend className="mb-2 text-[13px] font-medium text-encre-2">Planning des séances</legend>

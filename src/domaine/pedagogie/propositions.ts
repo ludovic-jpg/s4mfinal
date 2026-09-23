@@ -14,6 +14,7 @@
  * Module pur : il construit les consignes et valide les réponses, sans appel réseau.
  */
 import { validerQuestionnaire, type Questionnaire } from "../formulaires/qcm";
+import { DIAPOS_PAR_MODULE, heuresTexte, validerDiapos, validerModules, type Diapo, type EntreeParcours, type ModuleParcours } from "./parcours";
 
 export interface ContexteFormation {
   formation_titre: string;
@@ -23,6 +24,8 @@ export interface ContexteFormation {
   public_vise: string;
   programme: string;
   formation_duree_heures_total: number | null;
+  /** Modules du parcours, s'ils existent : ils rendent les questions plus précises. */
+  modules?: ModuleParcours[];
 }
 
 export type TypeQcm = "positionnement" | "acquis";
@@ -45,6 +48,7 @@ function decrire(f: ContexteFormation): string {
     f.formation_prerequis && `Prérequis : ${f.formation_prerequis}`,
     f.formation_duree_heures_total && `Durée : ${f.formation_duree_heures_total} heures`,
     f.formation_objectifs && `Objectifs :\n${f.formation_objectifs}`,
+    f.modules?.length ? `Modules :\n${f.modules.map((m, i) => `${i + 1}. ${m.titre} — ${m.objectifs.join(" ; ")}`).join("\n")}` : "",
     f.programme && `Programme :\n${f.programme}`,
   ]
     .filter(Boolean)
@@ -132,4 +136,71 @@ export function extraireJson(reponse: string): unknown {
   } catch {
     return null;
   }
+}
+
+
+// ——— « Modification 1 » (23/09/2026) : parcours complet et supports de cours ———
+
+/** Consigne de recherche commune : l'IA doit d'abord s'informer sur le sujet, puis concevoir. */
+const RECHERCHE = [
+  "Avant de rédiger, mène une recherche approfondie sur le sujet (utilise l'outil de recherche web s'il t'est fourni) :",
+  "repère les notions essentielles à enseigner, les méthodes et bonnes pratiques à jour, les erreurs fréquentes des apprenants et les références utiles (normes, textes, outils).",
+  "Conçois ensuite selon les principes de l'apprentissage adulte et de la charge cognitive : du simple au complexe, une idée à la fois, alternance apports / activités, récupération en mémoire, mise en pratique proche du poste de travail.",
+].join("\n");
+
+/** Parcours complet : l'IA rédige le contenu des modules ; leurs durées sont imposées par la plateforme. */
+export function consigneParcours(e: EntreeParcours, durees: number[]): string {
+  return [
+    `Conçois le parcours de l'action de formation « ${e.titre} », découpé en exactement ${durees.length} module(s).`,
+    RECHERCHE,
+    `Durées imposées (ne pas les modifier) : ${durees.map((d, i) => `module ${i + 1} = ${heuresTexte(d)}`).join(", ")}.`,
+    "Pour chaque module : un titre court et explicite ; 2 à 4 objectifs opérationnels et évaluables, chacun commençant par un verbe d'action à l'infinitif ; 3 à 6 points de contenu ; les méthodes pédagogiques ; une activité de mise en pratique concrète ; la modalité d'évaluation.",
+    "Objectifs de la formation : 3 à 8, verbes d'action, un par élément.",
+    'Schéma : {"objectifs": string[], "modules": [{"titre": string, "objectifs": string[], "contenus": string[], "methodes": string, "mise_en_pratique": string, "evaluation": string}]}',
+    "",
+    `Intitulé : ${e.titre}`,
+    e.niveau ? `Niveau : ${e.niveau}` : "",
+    e.public_vise ? `Public visé : ${e.public_vise}` : "",
+    `Durée : ${heuresTexte(e.heures)}${e.jours ? ` sur ${e.jours} jour(s)` : ""}`,
+    e.modalite ? `Modalité : ${e.modalite}` : "",
+  ]
+    .filter((l) => l !== "")
+    .join("\n");
+}
+
+export function validerPropositionParcours(brut: unknown, durees: number[]): Resultat<{ objectifs: string[]; modules: ModuleParcours[] }> {
+  if (typeof brut !== "object" || brut === null) return { ok: false, erreurs: ["La réponse de l'IA n'est pas un objet."] };
+  const o = brut as Record<string, unknown>;
+  const modules = validerModules(o.modules, { nombre: durees.length, durees });
+  const objectifs = Array.isArray(o.objectifs) ? o.objectifs.filter(texte).map((x) => x.trim()).filter(Boolean) : [];
+  const erreurs = modules.ok ? [] : [...modules.erreurs];
+  if (objectifs.length < 3 || objectifs.length > 8) erreurs.push(`L'IA a proposé ${objectifs.length} objectifs ; il en faut de 3 à 8.`);
+  return erreurs.length > 0 || !modules.ok ? { ok: false, erreurs } : { ok: true, valeur: { objectifs, modules: modules.valeur } };
+}
+
+/** Plan de 20 diapositives pour UN module : recherche, présentation cognitive, mise en page, mise en pratique. */
+export function consigneDiapos(formation: ContexteFormation, m: ModuleParcours, rang: number): string {
+  return [
+    `Conçois le support de cours (diaporama) du module ${rang} « ${m.titre} » de la formation « ${formation.formation_titre} » : exactement ${DIAPOS_PAR_MODULE} diapositives.`,
+    RECHERCHE,
+    "Règles de présentation : une idée par diapositive ; 3 à 5 points de 12 mots au plus ; un visuel suggéré par diapositive (schéma, pictogramme, photo) — double codage texte + image ;",
+    "un point d'étape de récupération en mémoire toutes les 4 à 5 diapositives ; au moins 3 diapositives de mise en pratique (consigne, critères de réussite, débriefing) ; une synthèse et un quiz final.",
+    "Notes du formateur : déroulé, questions à poser, timing indicatif.",
+    `Types admis : titre, objectifs, sommaire, amorce, notion, schema, exemple, point_etape, pratique, debriefing, vigilance, synthese, quiz.`,
+    'Schéma : {"diapos": [{"type": string, "titre": string, "points": string[], "visuel": string, "notes": string}]}',
+    "",
+    `Durée du module : ${heuresTexte(m.duree_heures)}`,
+    `Objectifs du module : ${m.objectifs.join(" ; ")}`,
+    `Contenus : ${m.contenus.join(" ; ")}`,
+    m.mise_en_pratique ? `Mise en pratique prévue : ${m.mise_en_pratique}` : "",
+    formation.public_vise ? `Public visé : ${formation.public_vise}` : "",
+    formation.formation_niveau ? `Niveau : ${formation.formation_niveau}` : "",
+  ]
+    .filter((l) => l !== "")
+    .join("\n");
+}
+
+export function validerPropositionDiapos(brut: unknown): Resultat<Diapo[]> {
+  if (typeof brut !== "object" || brut === null) return { ok: false, erreurs: ["La réponse de l'IA n'est pas un objet."] };
+  return validerDiapos((brut as Record<string, unknown>).diapos);
 }

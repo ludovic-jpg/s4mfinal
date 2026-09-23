@@ -12,6 +12,8 @@ import { deposerPieceFormateur, mettreAJourMonProfil, soumettreCandidature } fro
 import { creerDossier, definirSeances, inviter, lireDossier, modifierDossier, renseignerObjectifsAtteints } from "../services/dossiers";
 import { enregistrerEvaluation } from "../services/evaluations";
 import { creerFormation, deposerDansCoffre, enregistrerOutil } from "../services/formations";
+import { produireTousLesSupports, proposerParcours } from "../services/pedagogie-ia";
+import { inviterAuPositionnement, lirePositionnementPublic, signerPositionnementPublic } from "../services/positionnements";
 import { executerAction } from "../services/pipeline";
 import { enregistrerEntreprise, enregistrerStagiaire } from "../services/repertoire";
 import { deposerPieceExterne, deposerRetour, emarger, signerPiece } from "../services/retours";
@@ -221,6 +223,42 @@ export async function semer(s: Services): Promise<void> {
   await dossier("soumis", { stagiaires: [ines.id, theo.id], entreprise: transalp.id, formation: excel.id, debut: 40 });
   await dossier("brouillon", { stagiaires: [lea.id], entreprise: dupont.id, formation: management.id, debut: 55 });
 
+  // ——— « Modification 1 » (23/09/2026) : parcours généré, supports PPTX, coffre-fort, positionnements ———
+  const trame = await proposerParcours(s, sophie, { titre: "Prospection commerciale B2B", heures: 21, jours: 3, nb_modules: 4, niveau: "Intermédiaire", modalite: "presentiel", mode: "trame" });
+  const prospection = await creerFormation(s, sophie, {
+    formation_titre: "Prospection commerciale B2B",
+    formation_niveau: "Intermédiaire",
+    formation_domaine: "Commercial, vente et prospection",
+    formation_duree_heures_total: 21,
+    formation_duree_jours: 3,
+    formation_prix_unitaire_ht: 140_000,
+    formation_prix_groupe_ht: 450_000,
+    formation_effectif_min: 2,
+    formation_effectif_max: 8,
+    formation_modules: trame.modules,
+    formation_objectifs: trame.formation_objectifs,
+    programme: trame.programme,
+    public_vise: "Commerciaux, chargés d'affaires, dirigeants de TPE.",
+    formation_prerequis: "Aucun.",
+    formation_delai_acces: "Sous 2 semaines",
+    formation_modalites_sanction: "Attestation de fin de formation",
+    mode_financement: "opco",
+    formation_opco: "OPCO EP (Entreprises de proximité)",
+  });
+  await produireTousLesSupports(s, sophie, { formation_id: prospection.id, mode: "trame" });
+  await deposerDansCoffre(s, sophie, prospection.id, pdfFictif("Règlement intérieur"), { categorie: "qualite", partageable: false });
+  const signe = await inviterAuPositionnement(s, sophie, { stagiaire_id: lea.id, formation_id: prospection.id, message: "Merci de compléter avant notre entretien." });
+  const jetonLea = signe.lien.split("/").pop()!;
+  const vueLea = await lirePositionnementPublic(s, jetonLea);
+  await signerPositionnementPublic(s, jetonLea, {
+    recueil: RECUEIL,
+    reponses: vueLea.questionnaire!.questions.map((_, i) => i % 4),
+    date: jour(0),
+    trace_png: tracePngDemo(3),
+    lieu: "Mulhouse",
+    consentement: true,
+  });
+  await inviterAuPositionnement(s, sophie, { stagiaire_id: luc.id, formation_id: prospection.id });
 }
 
 // Exécution directe : `npm run db:seed` (sur une base vide).

@@ -7,7 +7,7 @@
  * réécrites : ce sont des documents contractuels soumis à conservation légale.
  */
 import { and, eq, inArray, notInArray } from "drizzle-orm";
-import { coffreFichier, dossierFormation, entrepriseCliente, formateur, formation, modeleOutil, pieceFormateur, sessionUtilisateur, stagiaire, stagiaireDossier, utilisateur } from "../bd/schema";
+import { coffreFichier, dossierFormation, entrepriseCliente, formateur, formation, modeleOutil, pieceFormateur, positionnement, sessionUtilisateur, stagiaire, stagiaireDossier, utilisateur } from "../bd/schema";
 import { verifierMotDePasse } from "./auth";
 import { ErreurMetier, interdit, invalide, journaliser, type Acteur, type Services } from "./socle";
 
@@ -54,6 +54,9 @@ export async function supprimerMonCompte(s: Services, acteur: Acteur, confirmati
       await tx.delete(coffreFichier).where(inArray(coffreFichier.formation_id, aSupprimer.map((f) => f.id)));
       await tx.delete(formation).where(inArray(formation.id, aSupprimer.map((f) => f.id)));
     }
+    // 2 bis. Positionnements hors dossier (« Modification 1 ») : pré-contractuels, ils partent avec le compte ;
+    // ceux qui ont servi à un dossier conservé y ont été recopiés (pièces 00-AVT et 01-AVT).
+    await tx.delete(positionnement).where(eq(positionnement.formateur_id, formateur_id));
     // 3. Fiches du répertoire qui ne figurent dans aucun dossier conservé (apprenants et entreprises).
     const inscrits = await tx
       .select({ id: stagiaireDossier.stagiaire_id })
@@ -92,6 +95,15 @@ export async function supprimerMonCompte(s: Services, acteur: Acteur, confirmati
         formateur_iban: "",
         formateur_bic: "",
         parcours: "",
+        formateur_statut_juridique: "",
+        formateur_domaines: [],
+        formateur_zones: "",
+        formateur_langues: "",
+        formateur_tarif_journalier: null,
+        formateur_bio: "",
+        formateur_linkedin: "",
+        formateur_disponibilites: "",
+        formateur_assurance_rc: "",
         motif_decision: "",
         anonymise_le: s.horloge.maintenant(),
       })

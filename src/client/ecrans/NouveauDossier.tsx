@@ -130,7 +130,7 @@ export function NouveauDossier() {
         )}
         {etape === 2 && (
           <Etape titre="Quelle formation ?" aide="Objectifs, durée, prix et questionnaires sont repris de votre catalogue." creer={() => setCreation("formation")} libelleCreer="Nouvelle formation">
-            {formations.data?.map((f) => <Choix key={f.id} actif={v.formation_id === f.id} titre={f.formation_titre} detail={[heuresFr(f.formation_duree_heures_total), f.formation_niveau, f.formation_prix_unitaire_ht !== null && `${euros(f.formation_prix_unitaire_ht)} HT / stagiaire`].filter(Boolean).join(" · ")} onClick={() => setV({ ...v, formation_id: f.id })} />)}
+            {formations.data?.map((f) => <Choix key={f.id} actif={v.formation_id === f.id} titre={f.formation_titre} detail={[heuresFr(f.formation_duree_heures_total), f.formation_niveau, f.formation_prix_unitaire_ht !== null && `${euros(f.formation_prix_unitaire_ht)} HT / stagiaire`].filter(Boolean).join(" · ")} onClick={() => setV({ ...v, formation_id: f.id, formation_modalite: f.formation_modalite, mode_financement: f.mode_financement })} />)}
           </Etape>
         )}
         {etape === 3 && (
@@ -184,8 +184,8 @@ export function NouveauDossier() {
       <Modale ouverte={creation === "entreprise"} fermer={() => setCreation(null)} titre="Nouvelle entreprise">
         <FormulaireEntreprise termine={(e) => { setCreation(null); if (e) setV((x) => ({ ...x, entreprise_id: e.id })); }} />
       </Modale>
-      <Modale ouverte={creation === "formation"} fermer={() => setCreation(null)} titre="Nouvelle formation">
-        <FormulaireFormation termine={(f) => { setCreation(null); if (f) setV((x) => ({ ...x, formation_id: f.id })); }} />
+      <Modale ouverte={creation === "formation"} fermer={() => setCreation(null)} titre="Nouvelle formation" large>
+        <FormulaireFormation termine={(f) => { setCreation(null); if (f) setV((x) => ({ ...x, formation_id: f.id, formation_modalite: f.formation_modalite, mode_financement: f.mode_financement })); }} />
       </Modale>
     </div>
   );

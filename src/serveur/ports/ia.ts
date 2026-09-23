@@ -13,7 +13,14 @@
 export interface AssistantPedagogique {
   readonly disponible: boolean;
   /** Envoie une consigne et retourne le texte brut de la réponse. Lève une erreur lisible en cas d'échec. */
-  rediger(consigneSysteme: string, demande: string): Promise<string>;
+  rediger(consigneSysteme: string, demande: string, options?: OptionsRedaction): Promise<string>;
+}
+
+export interface OptionsRedaction {
+  /** Autorise l'IA à mener une recherche web avant de rédiger (si le serveur l'a activée : IA_RECHERCHE_WEB=oui). */
+  recherche?: boolean;
+  /** Longueur maximale de la réponse (les plans de diaporama sont longs). */
+  maxTokens?: number;
 }
 
 export const iaIndisponible: AssistantPedagogique = {
@@ -31,14 +38,17 @@ export class IaAnthropic implements AssistantPedagogique {
     private readonly cle: string,
     private readonly modele: string,
     private readonly appel: typeof fetch = fetch,
-    private readonly delaiMs = 90_000,
+    private readonly delaiMs = 180_000,
+    private readonly rechercheWeb = false,
   ) {}
 
-  async rediger(consigneSysteme: string, demande: string): Promise<string> {
+  async rediger(consigneSysteme: string, demande: string, options: OptionsRedaction = {}): Promise<string> {
+    // Recherche web côté serveur d'Anthropic (outil « web_search ») : seulement si elle est activée ET demandée.
+    const outils = this.rechercheWeb && options.recherche ? { tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 5 }] } : {};
     const reponse = await this.appel("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: { "content-type": "application/json", "x-api-key": this.cle, "anthropic-version": "2023-06-01" },
-      body: JSON.stringify({ model: this.modele, max_tokens: 4096, system: consigneSysteme, messages: [{ role: "user", content: demande }] }),
+      body: JSON.stringify({ model: this.modele, max_tokens: options.maxTokens ?? 4096, system: consigneSysteme, messages: [{ role: "user", content: demande }], ...outils }),
       signal: AbortSignal.timeout(this.delaiMs),
     });
     if (!reponse.ok) {
@@ -52,6 +62,6 @@ export class IaAnthropic implements AssistantPedagogique {
   }
 }
 
-export function creerAssistant(cle: string, modele: string): AssistantPedagogique {
-  return cle && modele ? new IaAnthropic(cle, modele) : iaIndisponible;
+export function creerAssistant(cle: string, modele: string, rechercheWeb = false): AssistantPedagogique {
+  return cle && modele ? new IaAnthropic(cle, modele, fetch, 180_000, rechercheWeb) : iaIndisponible;
 }

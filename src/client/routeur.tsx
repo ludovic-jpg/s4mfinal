@@ -12,6 +12,9 @@ import { Repertoire } from "./ecrans/Repertoire";
 import { MaCandidature } from "./ecrans/Candidature";
 import { AdminCandidatures, AdminOrganisme } from "./ecrans/Admin";
 import { Bpf, Courriers, Compte } from "./ecrans/Divers";
+import { CoffreParcours, CoffresParcours } from "./ecrans/Coffre";
+import { PagePositionnement, Positionnements } from "./ecrans/Positionnements";
+import { Archives } from "./ecrans/Archives";
 
 const racine = createRootRoute({ component: Outlet, notFoundComponent: () => <p className="p-10 text-encre-2">Cette page n'existe pas.</p> });
 
@@ -24,6 +27,8 @@ const connexion = createRoute({
 });
 const inscription = createRoute({ getParentRoute: () => racine, path: "/inscription", component: Inscription });
 const invitation = createRoute({ getParentRoute: () => racine, path: "/invitation/$jeton", component: Invitation });
+// Page publique de positionnement (« Modification 1 ») : accessible par le lien personnel reçu par e-mail, sans compte.
+const positionnementPublic = createRoute({ getParentRoute: () => racine, path: "/positionnement/$jeton", component: PagePositionnement });
 
 // Application : tout ce qui suit passe par le cadre, qui exige une session.
 const app = createRoute({
@@ -34,7 +39,7 @@ const app = createRoute({
   beforeLoad: async ({ location }) => {
     const { acteur } = await requetes.ensureQueryData(requeteMoi);
     if (!acteur) throw redirect({ to: "/connexion", search: location.pathname === "/" ? {} : { retour: location.pathname } });
-    if (acteur.role === "formateur" && !acteur.formateur_valide && !["/candidature", "/compte"].includes(location.pathname)) throw redirect({ to: "/candidature" });
+    if (acteur.role === "formateur" && !acteur.formateur_valide && !["/candidature", "/profil", "/compte"].includes(location.pathname)) throw redirect({ to: "/candidature" });
   },
 });
 const accueil = createRoute({ getParentRoute: () => app, path: "/", component: Accueil });
@@ -51,12 +56,18 @@ const adminOrganisme = createRoute({ getParentRoute: () => app, path: "/admin/or
 const bpf = createRoute({ getParentRoute: () => app, path: "/bpf", component: Bpf });
 const courriers = createRoute({ getParentRoute: () => app, path: "/courriers", component: Courriers });
 const compte = createRoute({ getParentRoute: () => app, path: "/compte", component: Compte });
+const profil = createRoute({ getParentRoute: () => app, path: "/profil", component: MaCandidature });
+const coffres = createRoute({ getParentRoute: () => app, path: "/coffres", component: CoffresParcours });
+const coffre = createRoute({ getParentRoute: () => app, path: "/coffres/$id", component: CoffreParcours });
+const positionnements = createRoute({ getParentRoute: () => app, path: "/positionnements", component: Positionnements });
+const archives = createRoute({ getParentRoute: () => app, path: "/archives", component: Archives });
 
 const arbre = racine.addChildren([
   connexion,
   inscription,
   invitation,
-  app.addChildren([accueil, mesDossiers, nouveauDossier, dossier, formations, formation, outils, repertoire, candidature, adminCandidatures, adminOrganisme, bpf, courriers, compte]),
+  positionnementPublic,
+  app.addChildren([accueil, mesDossiers, nouveauDossier, dossier, formations, formation, outils, repertoire, candidature, adminCandidatures, adminOrganisme, bpf, courriers, compte, profil, coffres, coffre, positionnements, archives]),
 ]);
 
 export const routeur = createRouter({ routeTree: arbre, defaultPreload: "intent", scrollRestoration: true });

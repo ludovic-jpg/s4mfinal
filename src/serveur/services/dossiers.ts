@@ -1,7 +1,7 @@
 /**
  * Module 5 — Création d'un dossier de formation (F-DOS-01 à 07) et Module 6 — « Mes dossiers » (F-CRM-01 à 07).
  */
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull } from "drizzle-orm";
 import { z } from "zod";
 import { calculer } from "@/domaine/dossier/calculs";
 import type { Questionnaire } from "@/domaine/formulaires/qcm";
@@ -20,6 +20,7 @@ import { lireOrganisme } from "./organisme";
 import { manquesAvantSoumission, numeroSuivant } from "./pipeline";
 import { lireEntreprise, lireStagiaire } from "./repertoire";
 import { lireFormation } from "./formations";
+import { reprendrePositionnements } from "./positionnements";
 import { ErreurMetier, exigerFormateurValide, interdit, invalide, journaliser, type Acteur, type Services } from "./socle";
 
 const dateIso = z.union([z.literal(""), z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date attendue au format AAAA-MM-JJ")]);
@@ -71,7 +72,7 @@ export const SchemaSeances = z
 
 /** Modèle d'outil à rattacher au dossier : celui de la formation s'il existe, sinon le plus récent du formateur. */
 async function modelePour(s: Services, formateur_id: string, formation_id: string, type: "positionnement" | "acquis"): Promise<Questionnaire | null> {
-  const modeles = await s.bd.select().from(modeleOutil).where(and(eq(modeleOutil.formateur_id, formateur_id), eq(modeleOutil.type, type))).orderBy(desc(modeleOutil.cree_le));
+  const modeles = await s.bd.select().from(modeleOutil).where(and(eq(modeleOutil.formateur_id, formateur_id), eq(modeleOutil.type, type), isNull(modeleOutil.archive_le))).orderBy(desc(modeleOutil.cree_le));
   const choisi = modeles.find((m) => m.formation_id === formation_id) ?? modeles.find((m) => m.formation_id === null);
   return (choisi?.contenu as Questionnaire | undefined) ?? null;
 }
@@ -107,13 +108,18 @@ export async function creerDossier(s: Services, acteur: Acteur, donnees: unknown
     formation_programme: f.programme,
     formation_duree_heures_total: total,
     formation_duree_jours: f.formation_duree_jours,
-    formation_duree_heures_presentiel: v.formation_modalite === "presentiel" ? total : null,
-    formation_duree_heures_distanciel: v.formation_modalite === "distanciel" ? total : null,
+    // Répartition présentiel / distanciel : celle du catalogue si la modalité est la même, sinon déduite.
+    formation_duree_heures_presentiel: v.formation_modalite === "presentiel" ? total : v.formation_modalite === "mixte" ? f.formation_duree_heures_presentiel : null,
+    formation_duree_heures_distanciel: v.formation_modalite === "distanciel" ? total : v.formation_modalite === "mixte" ? f.formation_duree_heures_distanciel : null,
     formation_modalite: v.formation_modalite,
-    formation_lieu_nom: surSite ? ent.entreprise_nom : "",
-    formation_lieu_adresse: surSite ? ent.entreprise_adresse : "",
-    formation_lieu_siret: surSite ? ent.entreprise_siret : "",
+    // Lieu : celui du catalogue s'il est renseigné (salle louée, centre), sinon l'entreprise (intra).
+    formation_lieu_nom: surSite ? f.formation_lieu_nom || ent.entreprise_nom : "",
+    formation_lieu_adresse: surSite ? f.formation_lieu_adresse || ent.entreprise_adresse : "",
+    formation_lieu_siret: surSite ? (f.formation_lieu_nom ? f.formation_lieu_siret : ent.entreprise_siret) : "",
+    formation_lien_visio: v.formation_modalite !== "presentiel" ? f.formation_lien_visio : "",
+    formation_opco: v.mode_financement === "opco" || v.mode_financement === "faf" ? ent.entreprise_opco || f.formation_opco : "",
     formation_prix_unitaire_ht: f.formation_prix_unitaire_ht,
+    formateur_cout_horaire: f.formateur_cout_horaire,
     questionnaire_positionnement: await modelePour(s, formateur_id, f.id, "positionnement"),
     questionnaire_acquis: await modelePour(s, formateur_id, f.id, "acquis"),
     cree_le: s.horloge.maintenant(),
@@ -126,6 +132,8 @@ export async function creerDossier(s: Services, acteur: Acteur, donnees: unknown
   const d = await accederAuDossier(s, acteur, id);
   await synchroniserPieces(s, d);
   await journaliser(s, { of_id: acteur.of_id, dossier_id: id, acteur, type: "dossier_cree", libelle: `Dossier ${d.dossier_reference} créé` });
+  // « Modification 1 » : un positionnement déjà signé sur ce parcours est repris (recueil + test).
+  await reprendrePositionnements(s, acteur, d);
   return d;
 }
 

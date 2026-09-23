@@ -5,7 +5,7 @@
  * Module sans React : la structure du menu est une donnée, testée (`navigation.test.ts`) ; le cadre et la
  * page d'accueil l'affichent. Ajouter un écran = ajouter une ligne ici, au bon espace.
  */
-export type CleIcone = "formations" | "outils" | "apprenants" | "convention" | "dossiers" | "bpf" | "courriers" | "candidatures" | "organisme";
+export type CleIcone = "formations" | "outils" | "apprenants" | "convention" | "dossiers" | "bpf" | "courriers" | "candidatures" | "organisme" | "coffre" | "positionnement" | "profil" | "archives";
 
 export interface LienNav {
   vers: string;
@@ -34,13 +34,17 @@ export const ESPACES_FORMATEUR: readonly Espace[] = [
     liens: [
       { vers: "/formations", libelle: "Mes formations", icone: "formations", aide: "Programme, objectifs, coffre-fort pédagogique" },
       { vers: "/outils", libelle: "Outils pédagogiques", icone: "outils", aide: "Recueil des besoins, positionnement, évaluation des acquis" },
+      { vers: "/coffres", libelle: "Coffre-fort pédagogique", icone: "coffre", aide: "Par parcours : supports, tests, pièces administratives" },
     ],
   },
   {
     cle: "apprenant",
     titre: "Espace apprenant",
     description: "Vos apprenants et leurs entreprises. Chaque apprenant invité suit son parcours dans son propre espace.",
-    liens: [{ vers: "/repertoire", libelle: "Apprenants et entreprises", icone: "apprenants", aide: "Fiches réutilisables d'un dossier à l'autre" }],
+    liens: [
+      { vers: "/repertoire", libelle: "Apprenants et entreprises", icone: "apprenants", aide: "Fiches réutilisables d'un dossier à l'autre" },
+      { vers: "/positionnements", libelle: "Positionnements", icone: "positionnement", aide: "Inviter un apprenant : recueil, test, signature" },
+    ],
   },
   {
     cle: "formation",
@@ -62,6 +66,8 @@ const ESPACES_ADMIN: readonly Espace[] = [
     description: "Tous les dossiers de l'organisme, leur validation et leur suivi.",
     liens: [
       { vers: "/", libelle: "Tous les dossiers", icone: "dossiers", exact: true },
+      { vers: "/coffres", libelle: "Coffres-forts pédagogiques", icone: "coffre" },
+      { vers: "/positionnements", libelle: "Positionnements", icone: "positionnement" },
       { vers: "/bpf", libelle: "BPF", icone: "bpf" },
       { vers: "/courriers", libelle: "Boîte d'envoi", icone: "courriers" },
     ],
@@ -77,12 +83,18 @@ const ESPACES_ADMIN: readonly Espace[] = [
   },
 ];
 
-/** Menu affiché dans le rail latéral : une entrée « Accueil » éventuelle, puis les espaces. */
-export function navigationPour(role: string, formateurValide: boolean): { accueil: LienNav | null; espaces: readonly Espace[] } {
-  if (role === "admin") return { accueil: null, espaces: ESPACES_ADMIN };
+/** Liens personnels du formateur validé, sous les trois espaces (« Modification 1 » : profil, archives). */
+export const LIENS_PERSONNELS_FORMATEUR: readonly LienNav[] = [
+  { vers: "/profil", libelle: "Mon profil et candidature", icone: "profil" },
+  { vers: "/archives", libelle: "Archives et sauvegarde", icone: "archives" },
+];
+
+/** Menu affiché dans le rail latéral : une entrée « Accueil » éventuelle, les espaces, puis les liens personnels. */
+export function navigationPour(role: string, formateurValide: boolean): { accueil: LienNav | null; espaces: readonly Espace[]; personnels: readonly LienNav[] } {
+  if (role === "admin") return { accueil: null, espaces: ESPACES_ADMIN, personnels: [] };
   if (role === "formateur") {
-    if (!formateurValide) return { accueil: null, espaces: [{ cle: "formation", titre: "Candidature", description: "", liens: [{ vers: "/candidature", libelle: "Ma candidature", icone: "candidatures" }] }] };
-    return { accueil: { vers: "/", libelle: "Accueil", icone: "dossiers", exact: true }, espaces: ESPACES_FORMATEUR };
+    if (!formateurValide) return { accueil: null, espaces: [{ cle: "formation", titre: "Candidature", description: "", liens: [{ vers: "/candidature", libelle: "Ma candidature", icone: "candidatures" }] }], personnels: [] };
+    return { accueil: { vers: "/", libelle: "Accueil", icone: "dossiers", exact: true }, espaces: ESPACES_FORMATEUR, personnels: LIENS_PERSONNELS_FORMATEUR };
   }
-  return { accueil: null, espaces: [{ cle: "apprenant", titre: "Mon espace", description: "", liens: [{ vers: "/", libelle: "Mes formations", icone: "formations", exact: true }] }] };
+  return { accueil: null, espaces: [{ cle: "apprenant", titre: "Mon espace", description: "", liens: [{ vers: "/", libelle: "Mes formations", icone: "formations", exact: true }] }], personnels: [] };
 }

@@ -1,7 +1,7 @@
 /** Cadre de l'application : exige une session, affiche la navigation propre à chaque rôle (rail latéral, tiroir sur mobile). */
 import { useEffect, useState } from "react";
 import { Link, Outlet, useLocation } from "@tanstack/react-router";
-import { BookOpen, Building2, ClipboardCheck, FilePen, FileSpreadsheet, FolderKanban, House, LogOut, Mail, Menu, PencilRuler, ShieldCheck, UserRound, UsersRound, X } from "lucide-react";
+import { Archive, BookOpen, Building2, ClipboardCheck, ClipboardSignature, FilePen, FileSpreadsheet, FolderKanban, FolderLock, House, IdCard, LogOut, Mail, Menu, PencilRuler, ShieldCheck, UserRound, UsersRound, X } from "lucide-react";
 import { navigationPour, type CleIcone, type LienNav } from "../navigation";
 import { useDeconnexion, useMoi } from "../session";
 import { Chargement, cx } from "../ui/base";
@@ -16,6 +16,10 @@ const ICONES: Record<CleIcone, (c: string) => React.ReactNode> = {
   courriers: (c) => <Mail className={c} />,
   candidatures: (c) => <ClipboardCheck className={c} />,
   organisme: (c) => <Building2 className={c} />,
+  coffre: (c) => <FolderLock className={c} />,
+  positionnement: (c) => <ClipboardSignature className={c} />,
+  profil: (c) => <IdCard className={c} />,
+  archives: (c) => <Archive className={c} />,
 };
 
 export function Icone({ cle, className = "size-[18px]" }: { cle: CleIcone; className?: string }) {
@@ -36,7 +40,7 @@ export function Cadre() {
   if (!acteur) return <div className="px-8"><Chargement /></div>;
 
   // Menu principal : trois espaces pour le formateur (pédagogique, apprenant, formation) — voir navigation.ts.
-  const { accueil, espaces } = navigationPour(acteur.role, acteur.formateur_valide);
+  const { accueil, espaces, personnels } = navigationPour(acteur.role, acteur.formateur_valide);
   const lien = (l: LienNav, icone: React.ReactNode) => (
     <Link
       key={l.vers}
@@ -58,6 +62,12 @@ export function Cadre() {
           <div className="flex flex-col gap-0.5">{e.liens.map((l) => lien(l, <Icone cle={l.icone} />))}</div>
         </div>
       ))}
+      {personnels.length > 0 && (
+        <div role="group" aria-label="Mon espace" className="mt-3">
+          <p className="px-3 pb-1 text-[11px] font-semibold tracking-wide text-encre-3 uppercase">Mon espace</p>
+          <div className="flex flex-col gap-0.5">{personnels.map((l) => lien(l, <Icone cle={l.icone} />))}</div>
+        </div>
+      )}
     </nav>
   );
   const pied = (

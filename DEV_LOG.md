@@ -161,9 +161,39 @@ financement intervient après la signature de la convention, comme dans la réal
 
 **Checkpoint.** `npm run verifier` : **236 tests verts** (17 fichiers). `npm run test:e2e` : **7/7**. `npm run build` : OK.
 
+## 23/09/2026 (après-midi) — « Modification 1 » : parcours, kit pédagogique, coffre-fort, positionnement, profil, archives ✅ — 33 tests et 4 parcours navigateur de plus
+
+**Spécification.** Document « Modification 1.docx » (5 captures, consignes) + message du porteur de projet. Analyse et
+listing des 21 manques : `docs/MODIFICATION_1_23-09.md`.
+
+**Critères d'acceptation.** Chaque consigne a un test qui la cite (`tests/integration/modification-1.test.ts`) ; le
+compte pilote joue le parcours complet dans un vrai navigateur (`tests/e2e/modification-1.spec.ts`) ; les 236 tests
+existants restent verts ; le test de garde de l'IA reste vert.
+
+**Réalisé.**
+- Noyau : `pedagogie/listes.ts` (menus déroulants), `pedagogie/parcours.ts` (trame de parcours, répartition des heures,
+  tests et 20 diapositives, validations), consignes IA de parcours et de diaporama (`propositions.ts`).
+- Serveur : migration `0002_modification_1.sql` ; services `coffre.ts`, `positionnements.ts`, `supports.ts` (PPTX avec
+  `pptxgenjs`, ZIP avec `jszip`), `sauvegarde.ts` ; `formations.ts` (champs de convention, cohérence, versions,
+  archives, corbeille) ; compte pilote au démarrage (`amorce.ts`) ; routes publiques `/api/public/positionnement/*`.
+- Interface : formation en quatre onglets avec générateur et éditeur de modules, kit pédagogique, atelier des
+  supports, coffre-fort par parcours, positionnements (formateur et page publique), profil et candidature, archives et
+  sauvegarde, historique des versions, brouillon local de secours, partie financière du dossier.
+
+**Choix notables.** La trame fonctionne sans IA, pour que « générer » marche toujours ; l'IA ne fixe jamais les
+durées (imposées par la plateforme) ; le positionnement public se fait sans compte (H-27) ; les suppressions deviennent
+des archivages ou des mises à la corbeille.
+
+**Bogues trouvés pendant la recette.** Erreurs de champ non affichées sous « Durée »/« Tarif » (clés locales ≠ clés
+serveur) ; boutons du kit débordant de leur carte ; tracé de signature sous la barre collante (test).
+
+**Checkpoint.** `npm run verifier` : **269 tests verts** (18 fichiers). `npm run test:e2e` : **11/11**. `npm run build` : OK.
+
 ## Dette connue, à traiter ensuite
 
 1. Hypothèses 11 (qui signe la convention), 12 (valeur de la signature) et 13 (relecture de l'authentification) : **bloquantes avant toute mise en production**.
 2. Aucune purge automatique à l'échéance de conservation (hypothèse 9) ; aucun export « mes données » pour l'apprenant.
 3. Pas de reprise des dossiers de l'ancienne plateforme. `domaine/gabarits/migration.ts` sait déjà convertir les anciens gabarits ; les données restent à faire.
 4. Un seul fichier de migration : à partir de maintenant, toute évolution du schéma passe par `npm run db:generate` et un **nouveau** fichier, jamais par la modification de `0000_initial.sql`.
+5. « Modification 1 » : relances automatiques et purge des positionnements, tableau de bord OF des échéances,
+   images et PDF des supports, sauvegarde complète en un clic — voir `docs/SUITE_ET_TODO.md`.

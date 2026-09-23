@@ -35,8 +35,21 @@ export const SchemaProfilFormateur = z
     formateur_iban: z.string().trim().max(50),
     formateur_bic: z.string().trim().max(20),
     parcours: z.string().trim().max(8000),
+    // Profil étendu (« Modification 1 », 23/09/2026)
+    formateur_statut_juridique: z.string().trim().max(100),
+    formateur_domaines: z.array(z.string().trim().min(1).max(100)).max(20),
+    formateur_zones: z.string().trim().max(500),
+    formateur_langues: z.string().trim().max(200),
+    formateur_tarif_journalier: z.number().int().min(0).max(10_000_000).nullable(),
+    formateur_bio: z.string().trim().max(1500),
+    formateur_linkedin: z.union([z.literal(""), z.string().trim().url("Adresse de profil invalide.").max(300)]),
+    formateur_disponibilites: z.string().trim().max(1000),
+    formateur_assurance_rc: z.string().trim().max(300),
   })
   .partial();
+
+/** Après validation, l'identité ne se modifie plus que par l'organisme (elle figure sur les contrats signés). */
+const CHAMPS_FIGES_APRES_VALIDATION = ["formateur_prenom", "formateur_nom"] as const;
 
 function monFormateurId(acteur: Acteur): string {
   if (acteur.role !== "formateur" || !acteur.formateur_id) throw interdit();
@@ -48,7 +61,9 @@ export async function lireMaCandidature(s: Services, acteur: Acteur) {
   const [f] = await s.bd.select().from(formateur).where(eq(formateur.id, id));
   if (!f) throw introuvable("Candidature");
   const pieces = await s.bd.select().from(pieceFormateur).where(eq(pieceFormateur.formateur_id, id)).orderBy(pieceFormateur.cree_le);
-  return { formateur: f, pieces, types: TYPES_PIECE_FORMATEUR, manques: manquesCandidature(f, pieces) };
+  const aujourdhui = s.horloge.maintenant().toISOString().slice(0, 10);
+  const echeances = pieces.filter((p) => p.expire_le).map((p) => ({ id: p.id, nom_fichier: p.nom_fichier, expire_le: p.expire_le, expiree: p.expire_le < aujourdhui }));
+  return { formateur: f, pieces, types: TYPES_PIECE_FORMATEUR, manques: manquesCandidature(f, pieces), echeances };
 }
 
 function manquesCandidature(f: typeof formateur.$inferSelect, pieces: Array<{ type: string }>): string[] {
@@ -62,7 +77,18 @@ function manquesCandidature(f: typeof formateur.$inferSelect, pieces: Array<{ ty
 export async function mettreAJourMonProfil(s: Services, acteur: Acteur, donnees: unknown) {
   const id = monFormateurId(acteur);
   const valeurs = SchemaProfilFormateur.parse(donnees);
-  if (Object.keys(valeurs).length > 0) await s.bd.update(formateur).set(valeurs).where(eq(formateur.id, id));
+  const [actuel] = await s.bd.select().from(formateur).where(eq(formateur.id, id));
+  if (actuel?.statut_candidature === "soumise") throw new ErreurMetier("conflit", "Votre candidature est en cours d'étude : attendez la décision pour modifier votre profil.");
+  if (actuel?.statut_candidature === "validee") {
+    for (const cle of CHAMPS_FIGES_APRES_VALIDATION) {
+      if (cle in valeurs && valeurs[cle] !== actuel[cle]) throw invalide("Après validation, votre nom et votre prénom ne se modifient que par l'organisme de formation.");
+      delete valeurs[cle];
+    }
+  }
+  if (Object.keys(valeurs).length > 0) {
+    await s.bd.update(formateur).set(valeurs).where(eq(formateur.id, id));
+    if (actuel?.statut_candidature === "validee") await journaliser(s, { of_id: acteur.of_id, acteur, type: "profil_modifie", libelle: `Profil formateur mis à jour (${Object.keys(valeurs).join(", ")})` });
+  }
   if (valeurs.formateur_prenom || valeurs.formateur_nom) {
     await s.bd
       .update(utilisateur)
@@ -72,13 +98,16 @@ export async function mettreAJourMonProfil(s: Services, acteur: Acteur, donnees:
   return lireMaCandidature(s, acteur);
 }
 
-export async function deposerPieceFormateur(s: Services, acteur: Acteur, type: string, fichier: FichierDepose) {
+export async function deposerPieceFormateur(s: Services, acteur: Acteur, type: string, fichier: FichierDepose, expire_le = "") {
   const id = monFormateurId(acteur);
   if (!TYPES_PIECE_FORMATEUR.some((t) => t.type === type)) throw invalide("Type de pièce inconnu.");
+  if (expire_le && !/^\d{4}-\d{2}-\d{2}$/.test(expire_le)) throw invalide("Date de fin de validité attendue au format AAAA-MM-JJ.");
+  const [f] = await s.bd.select({ statut: formateur.statut_candidature }).from(formateur).where(eq(formateur.id, id));
+  if (f?.statut === "soumise") throw new ErreurMetier("conflit", "Votre candidature est en cours d'étude : attendez la décision pour ajouter des pièces.");
   validerFichier(fichier, "piece");
   const pieceId = nouvelId();
   const chemin = await s.archive.ecrire(cheminCandidature(acteur.of_id, id, `${type}_${pieceId.slice(0, 8)}_${fichier.nom}`), fichier.contenu);
-  await s.bd.insert(pieceFormateur).values({ id: pieceId, formateur_id: id, type, nom_fichier: fichier.nom, chemin, taille: fichier.contenu.length, cree_le: s.horloge.maintenant() });
+  await s.bd.insert(pieceFormateur).values({ id: pieceId, formateur_id: id, type, nom_fichier: fichier.nom, chemin, taille: fichier.contenu.length, expire_le, cree_le: s.horloge.maintenant() });
   return lireMaCandidature(s, acteur);
 }
 

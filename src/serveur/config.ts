@@ -19,6 +19,16 @@ const Schema = z.object({
   /** Assistant IA de l'espace pédagogique (facultatif) : les deux doivent être renseignés pour l'activer. */
   ANTHROPIC_API_KEY: z.string().default(""),
   IA_MODELE: z.string().default(""),
+  /** « oui » : l'IA peut mener une recherche web avant de rédiger parcours et supports (coût supplémentaire). */
+  IA_RECHERCHE_WEB: z.enum(["oui", "non"]).default("non"),
+  /**
+   * Compte formateur « pilote », créé (ou vérifié) à CHAQUE démarrage, même sur une base existante.
+   * Demande du 23/09/2026. Vider COMPTE_PILOTE_EMAIL pour ne pas le créer.
+   */
+  COMPTE_PILOTE_EMAIL: z.string().default("ludoalbisser@gmail.com"),
+  COMPTE_PILOTE_MOT_DE_PASSE: z.string().default("1234ludo"),
+  COMPTE_PILOTE_PRENOM: z.string().default("Ludovic"),
+  COMPTE_PILOTE_NOM: z.string().default("Albisser"),
 });
 
 export type Config = z.infer<typeof Schema>;

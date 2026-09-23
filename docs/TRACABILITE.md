@@ -164,3 +164,20 @@ Par honnêteté, ce que cette version ne fait pas : dépôt sur Google Drive (F-
 derrière un port), signature qualifiée au sens eIDAS (H12), envoi SMS, paiement en ligne, import des dossiers de
 l'ancienne plateforme. Chacun de ces points a un emplacement prévu, décrit dans
 [`ARCHITECTURE.md`](ARCHITECTURE.md) § « Ce qui n'est PAS fait (et où le brancher) ».
+
+
+## « Modification 1 » (23/09/2026) → code → test
+
+| Consigne | Code | Test |
+|---|---|---|
+| M-01 Niveau en liste, menus déroulants | `domaine/pedagogie/listes.ts`, `client/ui/champs.tsx` | e2e « génère un parcours… » (sélection du niveau) |
+| M-02/03 Générer puis aménager le parcours | `domaine/pedagogie/parcours.ts`, `services/pedagogie-ia.ts` → `proposerParcours`, `ecrans/Formations.tsx` | `modification-1.test.ts` §1 ; e2e |
+| M-04/05 Tests générés | `pedagogie-ia.ts` → `proposerTest`, `ecrans/Outils.tsx` → `GenerateurTest` | §2 ; e2e |
+| M-06 PPTX 20 diapositives / module | `parcours.ts` → `trameDiapos`, `propositions.ts` → `consigneDiapos`, `services/supports.ts` | §2 (lecture du PPTX produit) |
+| M-07 à M-11 Coffre-fort par parcours | `services/coffre.ts`, `ecrans/Coffre.tsx` | §3 ; e2e (coffre de démonstration, positionnement signé) |
+| M-12 Apprenant + entreprise | `services/repertoire.ts` → `enregistrerStagiaire` | §4 ; e2e |
+| M-13/14 Partie financière, champs de convention | `formations.ts` → `SchemaFormation`, `dossiers.ts` → `creerDossier`, `ecrans/Dossier.tsx` | §1, §5 (reprise et modification dans le dossier) |
+| M-15 à M-19 Positionnement avant dossier | `services/positionnements.ts`, `ecrans/Positionnements.tsx` | §5 ; e2e |
+| M-20 Profil et candidature | `services/candidatures.ts`, `ecrans/Candidature.tsx` | §6 ; e2e « menu… profil » |
+| M-21 Archives, versions, brouillons, sauvegarde | `formations.ts`, `services/sauvegarde.ts`, `ui/brouillon.ts`, `ecrans/Archives.tsx`, `ecrans/Versions.tsx` | §1, §3, §7 |
+| Compte pilote | `bd/amorce.ts` → `assurerComptePilote`, `demarrer.ts` | §8 ; e2e (connexion) |

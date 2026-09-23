@@ -17,6 +17,7 @@ export interface PieceJointe {
 export interface Message {
   of_id: string;
   dossier_id?: string | null;
+  formateur_id?: string | null;
   type: string;
   destinataire: string;
   sujet: string;
@@ -64,6 +65,7 @@ export class CourrierJournalise implements Courrier {
       id,
       of_id: message.of_id,
       dossier_id: message.dossier_id ?? null,
+      formateur_id: message.formateur_id ?? null,
       type: message.type,
       destinataire: message.destinataire,
       sujet: message.sujet,

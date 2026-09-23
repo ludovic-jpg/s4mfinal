@@ -68,3 +68,22 @@ export async function utilisateurParEmail(s: Services, email: string) {
   const [u] = await s.bd.select().from(utilisateur).where(eq(utilisateur.email, normaliserEmail(email)));
   return u ?? null;
 }
+
+/**
+ * Compte formateur « pilote » demandé le 23/09/2026 (ludoalbisser@gmail.com) : créé au démarrage s'il n'existe pas,
+ * candidature déjà validée, rattaché au premier organisme. Idempotent. Retourne ce qui a été fait, pour le journal.
+ *
+ * Le mot de passe demandé (8 caractères) est plus court que la règle de l'application (10) : il est accepté ici
+ * seulement, pour ce compte de test. À CHANGER avant toute mise en ligne (« Mon compte » → mot de passe).
+ */
+export async function assurerComptePilote(s: Services, d: { email: string; mot_de_passe: string; prenom: string; nom: string }): Promise<string> {
+  const existant = await utilisateurParEmail(s, d.email);
+  if (existant) {
+    if (existant.role === "formateur") return "déjà présent";
+    return `ADRESSE DÉJÀ UTILISÉE par un compte « ${existant.role} » : compte pilote NON créé (voir docs/GUIDE_LANCEMENT.md)`;
+  }
+  const [of] = await s.bd.select({ id: organismeFormation.id }).from(organismeFormation).orderBy(organismeFormation.cree_le).limit(1);
+  if (!of) return "aucun organisme : compte non créé";
+  await creerFormateurValide(s, { of_id: of.id, email: d.email, mot_de_passe: d.mot_de_passe, prenom: d.prenom, nom: d.nom });
+  return "créé (candidature validée)";
+}

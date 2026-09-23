@@ -6,7 +6,7 @@ import { serve } from "@hono/node-server";
 import { serveStatic } from "@hono/node-server/serve-static";
 import { lireConfig } from "./config";
 import { ouvrirBase } from "./bd/connexion";
-import { creerOrganismeVierge, creerUtilisateur, organismeExiste } from "./bd/amorce";
+import { assurerComptePilote, creerOrganismeVierge, creerUtilisateur, organismeExiste } from "./bd/amorce";
 import { COMPTES_DEMO, MDP_DEMO, semer } from "./bd/semence";
 import { creerApp } from "./http/app";
 import { ArchiveLocale } from "./ports/archive";
@@ -25,7 +25,7 @@ const expedition = config.COURRIER_MODE === "smtp" && config.SMTP_URL ? { transp
 const dist = resolve("dist");
 const interfaceCompilee = existsSync(join(dist, "index.html"));
 const appUrl = config.APP_URL || (interfaceCompilee ? `http://localhost:${config.PORT}` : "http://localhost:5173");
-const s: Services = { bd, archive, courrier: new CourrierJournalise(bd, archive, expedition), pdf, horloge: horlogeSysteme, appUrl, ia: creerAssistant(config.ANTHROPIC_API_KEY, config.IA_MODELE) };
+const s: Services = { bd, archive, courrier: new CourrierJournalise(bd, archive, expedition), pdf, horloge: horlogeSysteme, appUrl, ia: creerAssistant(config.ANTHROPIC_API_KEY, config.IA_MODELE, config.IA_RECHERCHE_WEB === "oui") };
 
 // Première ouverture : la base est vide. Soit un jeu de démonstration (données fictives), soit un organisme
 // vierge à configurer et son premier administrateur (AMORCE=vide).
@@ -39,6 +39,12 @@ if (!(await organismeExiste(s))) {
     await semer(s);
     console.log(`[s4m] comptes de démonstration (mot de passe : ${MDP_DEMO}) : ${COMPTES_DEMO.map((c) => c.email).join(", ")}`);
   }
+}
+
+// Compte formateur pilote (demande du 23/09/2026) : vérifié à chaque démarrage, créé s'il manque.
+if (config.COMPTE_PILOTE_EMAIL) {
+  const r = await assurerComptePilote(s, { email: config.COMPTE_PILOTE_EMAIL, mot_de_passe: config.COMPTE_PILOTE_MOT_DE_PASSE, prenom: config.COMPTE_PILOTE_PRENOM, nom: config.COMPTE_PILOTE_NOM });
+  console.log(`[s4m] compte formateur pilote ${config.COMPTE_PILOTE_EMAIL} : ${r}`);
 }
 
 const app = creerApp(s, { production: config.NODE_ENV === "production" });

@@ -7,7 +7,7 @@ PowerShell ou le terminal intégré de VS Code (menu *Terminal → Nouveau termi
 **Sommaire**
 
 1. Installer une fois pour toutes
-2. Récupérer la nouvelle version (branche `evolution/trois-espaces`)
+2. Installer la nouvelle version (`s4m-plateforme_6.zip`, branche `evolution/modification-1`)
 3. Lancer l'application en local, et la tester
 4. Mettre l'application en ligne (préproduction, puis production)
 5. La méthode de travail qui garde un code solide
@@ -32,45 +32,28 @@ Rien d'autre n'est nécessaire : ni base de données à installer, ni Docker. La
 
 ---
 
-## 2. Récupérer la nouvelle version
+## 2. Installer la nouvelle version (« Modification 1 », 23/09/2026)
 
-Le travail du 23/09 se trouve sur une **branche Git** distincte, `evolution/trois-espaces`. La version du 21/09 reste
-intacte sur `main`. Rien n'est perdu, et tu choisis quand fusionner.
+Tu reçois **`s4m-plateforme_6.zip`** : le dépôt **complet** (code, documentation, historique Git). Il remplace à la
+fois `s4m-plateforme_5.zip` et la surcouche `s4m-evolution-23-09` — plus besoin de copier des fichiers à la main.
 
-```powershell
-cd "$HOME\Downloads\Sk4m2309\s4m-plateforme"   # ou ton nouvel emplacement
-git branch                                      # la branche active porte une étoile
-git switch evolution/trois-espaces              # passer sur la nouvelle version
-git log --oneline -3                            # voir les derniers commits
-```
-
-**Si la branche n'existe pas encore** (livraison par archive `s4m-evolution-23-09.tgz`) : place l'archive à côté du
-dossier `s4m-plateforme`, puis :
+1. Crée le dossier `Documents\Projects` s'il n'existe pas, et **décompresse** l'archive dedans : tu obtiens
+   `Documents\Projects\s4m-plateforme`. (Clic droit → *Extraire tout…* sous Windows.)
+2. Ouvre un terminal **dans ce dossier** (dans VS Code : *Fichier → Ouvrir le dossier…*, puis *Terminal → Nouveau
+   terminal*).
+3. Vérifie que tu es au bon endroit et sur la bonne branche :
 
 ```powershell
-cd "$HOME\Downloads\Sk4m2309\s4m-plateforme"
-git switch -c evolution/trois-espaces          # crée la branche à partir de main
-tar -xzf ..\s4m-evolution-23-09.tgz            # dépose les 52 fichiers modifiés ou nouveaux
-npm install
-npm run verifier                               # doit afficher « Tests 236 passed »
-git add -A
-git commit -m "Cahier des charges oral du 23/09 : trois espaces, parcours apprenant, programme annexé, IA pédagogique"
+git branch            # l'étoile doit être sur « evolution/modification-1 »
+git log --oneline -4  # le premier commit parle de « Modification 1 »
 ```
 
-**Voir ce qui a changé** : dans VS Code, ouvre le panneau *Source Control* (icône des branches), ou tape :
+**Voir ce qui a changé depuis le 21/09** : `git diff main --stat`. **Revenir à la version du 21/09** : `git switch main`.
+**Adopter la nouvelle version comme référence**, après ta recette : `git switch main` puis
+`git merge evolution/modification-1`.
 
-```powershell
-git diff main --stat          # la liste des fichiers modifiés
-git diff main -- docs/        # le détail, ici limité à la documentation
-```
-
-**Revenir à l'ancienne version** à tout moment : `git switch main`.
-**Adopter la nouvelle version** une fois ta recette faite (section 3.4) :
-
-```powershell
-git switch main
-git merge evolution/trois-espaces
-```
+> ⚠️ **Ne copie pas** le `package.json` du dossier `s4m-evolution-23-09` : c'est un fichier vide créé par
+> `npm init`, qui casserait l'installation. Le zip de cette livraison contient le bon.
 
 ---
 
@@ -84,69 +67,96 @@ npm run build      # compile l'interface
 npm start          # démarre l'application
 ```
 
-Tu dois voir, entre autres, ces lignes :
+Tu dois voir, entre autres :
 
 ```
 [s4m] base vide — création du jeu de démonstration…
+[s4m] compte formateur pilote ludoalbisser@gmail.com : créé (candidature validée)
 [s4m] application prête sur http://localhost:3001
 [s4m] courrier : boîte locale (rien ne part) · PDF : Chromium trouvé · IA pédagogique : désactivée
 ```
 
-Ouvre **<http://localhost:3001>**. Mot de passe de tous les comptes de démonstration : **`demonstration-s4m`**.
+Ouvre **<http://localhost:3001>**.
 
-| Pour tester… | Se connecter avec |
+| Compte | Mot de passe | Pour tester |
+|---|---|---|
+| **`ludoalbisser@gmail.com`** (formateur, **ton compte**) | **`1234ludo`** | Tout, en partant d'un espace vide : parcours, tests, supports, coffre, positionnements, dossiers |
+| `formatrice@demo.example` (formatrice avec historique) | `demonstration-s4m` | Un catalogue rempli, dont « Prospection commerciale B2B » avec 4 supports PPTX, un positionnement signé et un en attente |
+| `apprenante@demo.example` | `demonstration-s4m` | L'espace de l'apprenant (sections, signature, « J'affirme avoir déposé ») |
+| `admin@demo.example` (organisme) | `demonstration-s4m` | Validation des dossiers, coffres et positionnements de tous les formateurs, candidatures, boîte d'envoi |
+| `candidat@demo.example` | `demonstration-s4m` | Une candidature de formateur à valider |
+
+**Arrêter** : `Ctrl + C`. **Repartir d'une base neuve** : arrête l'application, supprime le dossier `donnees`, relance.
+
+> **Ta base existante.** Si tu relances sur ton ancien dossier `donnees`, la **migration**
+> `drizzle/0002_modification_1.sql` s'applique toute seule, et le compte `ludoalbisser@gmail.com` est créé **s'il
+> n'existe pas déjà**. Si cette adresse sert déjà à un compte *apprenant* de tes essais, le démarrage l'écrit
+> (« ADRESSE DÉJÀ UTILISÉE ») : repars d'une base neuve, ou change `COMPTE_PILOTE_EMAIL` dans `.env`.
+
+> **Le mot de passe `1234ludo`** est accepté pour ce compte de test seulement (la règle de l'application impose 10
+> caractères). **Change-le** dans « Mon compte » avant toute mise en ligne, et remplace les données fictives de ton
+> profil (entreprise, SIRET, IBAN) dans « Mon profil et candidature ».
+
+### 3.2 Les nouveautés, où cliquer
+
+| Tu veux… | Où |
 |---|---|
-| Le menu à trois espaces et le générateur de conventions | `formatrice@demo.example` |
-| Le parcours de l'apprenant (sections, signature, « J'affirme avoir déposé ») | `apprenante@demo.example` |
-| La validation administrative et la boîte d'envoi | `admin@demo.example` |
-| Une candidature de formateur à valider | `candidat@demo.example` |
+| Générer un parcours avec titre, heures, jours, tarif, nombre de modules | *Mes formations → Nouvelle formation* → **Générer le parcours** |
+| Aménager les modules, puis enregistrer (à tout moment) | Onglet *2. Parcours* de la formation → **Enregistrer** |
+| Générer test de positionnement, évaluation des acquis, supports PPTX | Fiche formation → carte **Kit pédagogique du parcours** |
+| Le coffre-fort d'un parcours (pédagogique + administratif) | Menu **Coffre-fort pédagogique** |
+| Créer un apprenant et son entreprise d'un coup | *Apprenants et entreprises → Nouvelle fiche apprenant* → « + Créer une nouvelle entreprise… » |
+| Inviter un apprenant à se positionner | Bouton **Positionner** sur l'apprenant, ou menu **Positionnements** |
+| Modifier la partie financière d'une convention | Dans le dossier (tant qu'il n'est pas validé) : cadre **Partie financière de la convention** |
+| Profil, justificatifs, candidature | **Mon profil et candidature** |
+| Retrouver ce qui a été archivé ou supprimé ; sauvegarder | **Archives et sauvegarde** ; **Historique** dans une formation ou un questionnaire |
 
-**Arrêter** : `Ctrl + C` dans le terminal.
-**Repartir d'une base neuve** : arrête l'application, supprime le dossier `donnees`, puis relance `npm start`.
+Le scénario complet, étape par étape, est dans [`RECETTE_NARRATIVE.md`](RECETTE_NARRATIVE.md).
 
-> ⚠️ **Nouvelle migration.** Cette version ajoute une colonne à la base (`drizzle/0001_programme_annexe.sql`).
-> Elle s'applique **toute seule** au démarrage, même sur une base existante. Seuls les dossiers déjà créés auront
-> un programme vide : il suffit de le compléter dans le dossier, et il est de toute façon exigé avant la soumission.
+### 3.3 Activer l'assistant IA de l'espace pédagogique (facultatif)
 
-### 3.2 Activer l'assistant IA de l'espace pédagogique (facultatif)
+Sans IA, **tout fonctionne** : les générateurs utilisent la trame pédagogique automatique. Pour activer l'IA :
 
 1. Crée une clé d'API sur <https://console.anthropic.com> (compte payant à l'usage).
-2. Copie le fichier `.env.example` en `.env` (dans VS Code : clic droit → *Copier*, puis *Coller* et renommer).
-3. Dans `.env`, renseigne :
+2. Copie `.env.example` en `.env`, puis renseigne :
    ```
    ANTHROPIC_API_KEY=sk-ant-...ta-cle...
    IA_MODELE=nom-du-modele
+   IA_RECHERCHE_WEB=oui      # facultatif : l'IA fait une recherche web avant de rédiger (plus long, plus coûteux)
    ```
-   Le nom exact du modèle se trouve sur <https://docs.claude.com>, page « Models ». Choisis un modèle récent de
-   la gamme Sonnet : c'est un bon équilibre entre qualité et coût pour ce type de rédaction.
-4. Relance `npm start`. La ligne de démarrage doit afficher `IA pédagogique : activée (…)`.
+   Le nom exact du modèle est sur <https://docs.claude.com>, page « Models ».
+3. Relance `npm start` : la ligne de démarrage affiche `IA pédagogique : activée (…)`.
 
-Les boutons « Proposer avec l'IA » apparaissent alors dans *Mes formations* et dans *Outils pédagogiques*.
-L'IA ne reçoit que la description de la formation, jamais de données sur un apprenant ou une entreprise.
-**Le fichier `.env` ne doit jamais être envoyé sur GitHub** : il est déjà exclu par `.gitignore`.
+Dans chaque générateur, le choix **Moteur → Assistant IA** devient disponible. L'IA ne reçoit que la description
+de la formation (jamais un apprenant, une entreprise ou un prix) et ne touche jamais aux conventions ni aux pièces.
+**Le fichier `.env` ne doit jamais être envoyé sur GitHub** (déjà exclu par `.gitignore`).
 
-### 3.3 Lancer les tests
+### 3.4 Lancer les tests
 
 ```powershell
-npm run verifier     # typage + lint + 236 tests (environ 40 s) : doit finir sans erreur
+npm run verifier                  # typage + lint + 269 tests (environ 1 min) : doit finir sans erreur
 npx playwright install chromium   # une seule fois, pour les tests navigateur
-npm run test:e2e     # 7 parcours dans un vrai navigateur (environ 1 min)
+npm run test:e2e                  # 11 parcours dans un vrai navigateur (environ 2 min)
+npx vitest run tests/integration/modification-1.test.ts   # seulement la recette de « Modification 1 » (32 tests)
 ```
 
-Ce que tu dois lire à la fin : `Tests 236 passed` puis `7 passed`. Si un test échoue, son nom dit quelle règle est
-cassée ; c'est **voulu**, et c'est ce qui protège le métier.
+Ce que tu dois lire : `Tests 269 passed`, puis `11 passed`.
 
-### 3.4 Développer en voyant le résultat en direct
+### 3.5 Développer en voyant le résultat en direct
 
 ```powershell
 npm run dev    # API sur :3001 + interface sur http://localhost:5173, rechargée à chaque modification
 ```
 
-### 3.5 Recette à la main
+### 3.6 Recette à la main
 
-Suis la liste de [`RECETTE_23-09.md`](RECETTE_23-09.md), section 3. Compte environ une heure. Coche chaque ligne.
-Une ligne qui ne se passe pas comme prévu devient un ticket, décrit en une phrase : « je fais X, j'attends Y,
-j'obtiens Z ».
+Suis [`RECETTE_NARRATIVE.md`](RECETTE_NARRATIVE.md) (1 h 30 à 2 h), puis, pour la fin du parcours apprenant,
+[`RECETTE_23-09.md`](RECETTE_23-09.md), section 3.
+
+### 3.7 Sauvegarder tes données locales
+
+Tout est dans le dossier **`donnees/`** (base + pièces archivées). Arrête l'application et copie ce dossier : c'est
+ta sauvegarde complète. Pour ton seul espace pédagogique, *Archives et sauvegarde → Télécharger ma sauvegarde*.
 
 ---
 
@@ -213,6 +223,7 @@ ADMIN_MOT_DE_PASSE=une-phrase-longue-et-unique
 COURRIER_MODE=smtp
 SMTP_URL=smtps://utilisateur:motdepasse@smtp.fournisseur:465
 COURRIER_EXPEDITEUR=Skills4mation <no-reply@skills4mation.fr>
+COMPTE_PILOTE_EMAIL=          # VIDE en production : pas de compte de test créé au démarrage
 ```
 
 ```bash
@@ -286,3 +297,8 @@ C'est ce qui sépare un prototype d'un outil professionnel. Le dépôt applique 
 | « Clé d'API IA refusée » | Clé erronée ou révoquée | Recréer une clé sur la console Anthropic |
 | Un test échoue après une modification | Une règle métier a changé | Lire le nom du test : il cite l'exigence. Corriger le code, ou le test si la règle a **vraiment** changé (et le noter au DEV_LOG) |
 | « Another git process seems to be running » | Un verrou Git est resté | Fermer VS Code, puis supprimer le fichier `.git\index.lock` |
+| « compte formateur pilote … ADRESSE DÉJÀ UTILISÉE » au démarrage | `ludoalbisser@gmail.com` sert déjà à un compte apprenant de ta base | Repartir d'une base neuve (supprimer `donnees`), ou mettre une autre adresse dans `COMPTE_PILOTE_EMAIL` |
+| Le bouton « Générer le parcours » reste grisé | Intitulé ou durée en heures manquant | Les renseigner dans l'onglet *1. L'essentiel* |
+| « La somme des durées des modules … » à l'enregistrement | Les modules ne totalisent pas la durée de la formation | Ajuster une durée de module, ou la durée totale |
+| « Ce lien a expiré » sur la page de positionnement | Lien de plus de 30 jours, ou remplacé par une relance | *Positionnements* → **Relancer** : un nouveau lien part |
+| Le PDF de positionnement s'ouvre en HTML | Chrome/Edge introuvable au moment de la signature | Renseigner `CHROMIUM_PATH`, ou imprimer le HTML en PDF |

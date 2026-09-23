@@ -24,6 +24,9 @@ import * as organisme from "../services/organisme";
 import * as bpf from "../services/bpf";
 import * as rgpd from "../services/rgpd";
 import * as pedagogieIa from "../services/pedagogie-ia";
+import * as coffre from "../services/coffre";
+import * as positionnements from "../services/positionnements";
+import * as sauvegarde from "../services/sauvegarde";
 import { executerAction } from "../services/pipeline";
 import { TAILLE_MAX_COFFRE, type FichierDepose } from "../services/fichiers";
 import { ErreurMetier, exigerRole, invalide, type Acteur, type CodeErreur, type Services } from "../services/socle";
@@ -123,7 +126,13 @@ export function creerApp(s: Services, options: { production?: boolean } = {}) {
     return c.json({ ok: true });
   });
 
-  app.use("/api/*", async (c, next) => (c.req.path.startsWith("/api/auth/") ? next() : connecte(c, next)));
+  // ——— Page publique de positionnement (« Modification 1 ») : l'apprenant y accède par son lien personnel ———
+  app.get("/api/public/positionnement/:jeton", async (c) => c.json(await positionnements.lirePositionnementPublic(s, c.req.param("jeton"))));
+  app.put("/api/public/positionnement/:jeton/brouillon", async (c) => c.json(await positionnements.enregistrerBrouillonPublic(s, c.req.param("jeton"), await corps(c))));
+  app.post("/api/public/positionnement/:jeton/signer", async (c) => c.json(await positionnements.signerPositionnementPublic(s, c.req.param("jeton"), await corps(c), ip(c))));
+  app.get("/api/public/positionnement/:jeton/pdf", async (c) => telechargement(c, await positionnements.telechargerPdfPublic(s, c.req.param("jeton"))));
+
+  app.use("/api/*", async (c, next) => (c.req.path.startsWith("/api/auth/") || c.req.path.startsWith("/api/public/") ? next() : connecte(c, next)));
   const A = (c: Context<Env>) => c.get("acteur");
 
   app.post("/api/compte/mot-de-passe", async (c) => {
@@ -150,7 +159,7 @@ export function creerApp(s: Services, options: { production?: boolean } = {}) {
   app.patch("/api/candidature", async (c) => c.json(await candidatures.mettreAJourMonProfil(s, A(c), await corps(c))));
   app.post("/api/candidature/pieces", async (c) => {
     const { fichier, champs } = await fichierDe(c);
-    return c.json(await candidatures.deposerPieceFormateur(s, A(c), champs.type ?? "", fichier), 201);
+    return c.json(await candidatures.deposerPieceFormateur(s, A(c), champs.type ?? "", fichier, champs.expire_le ?? ""), 201);
   });
   app.delete("/api/candidature/pieces/:id", async (c) => c.json(await candidatures.supprimerPieceFormateur(s, A(c), c.req.param("id"))));
   app.post("/api/candidature/soumettre", async (c) => c.json(await candidatures.soumettreCandidature(s, A(c))));
@@ -181,13 +190,20 @@ export function creerApp(s: Services, options: { production?: boolean } = {}) {
     if (acteur.role === "formateur") {
       const miens = await s.bd.select({ id: dossierFormation.id }).from(dossierFormation).where(eq(dossierFormation.formateur_id, acteur.formateur_id ?? ""));
       const ids = new Set(miens.map((m) => m.id));
-      lignes = lignes.filter((l) => (l.dossier_id && ids.has(l.dossier_id)) || l.destinataire === acteur.email);
+      lignes = lignes.filter((l) => (l.dossier_id && ids.has(l.dossier_id)) || l.formateur_id === acteur.formateur_id || l.destinataire === acteur.email);
     }
     return c.json(lignes);
   });
 
   // ——— Modules 2 et 3 : formations, outils, coffre-fort ———
-  app.get("/api/formations", async (c) => c.json(await formations.listerFormations(s, A(c))));
+  app.get("/api/formations", async (c) => c.json(await formations.listerFormations(s, A(c), { archivees: c.req.query("archivees") === "1" })));
+  app.post("/api/formations/:id/restaurer", async (c) => c.json(await formations.restaurerFormation(s, A(c), c.req.param("id"))));
+  app.get("/api/versions/:type/:id", async (c) => {
+    const type = c.req.param("type");
+    if (type !== "formation" && type !== "outil") throw invalide("Type inconnu.");
+    return c.json(await formations.listerVersions(s, A(c), type, c.req.param("id")));
+  });
+  app.post("/api/versions/:id/restaurer", async (c) => c.json(await formations.restaurerVersion(s, A(c), c.req.param("id"))));
   app.post("/api/formations", async (c) => c.json(await formations.creerFormation(s, A(c), await corps(c)), 201));
   app.get("/api/formations/:id", async (c) => c.json(await formations.lireFormation(s, A(c), c.req.param("id"))));
   app.patch("/api/formations/:id", async (c) => c.json(await formations.modifierFormation(s, A(c), c.req.param("id"), await corps(c))));
@@ -196,10 +212,24 @@ export function creerApp(s: Services, options: { production?: boolean } = {}) {
   app.get("/api/formations/:id/coffre", async (c) => c.json(await formations.listerCoffre(s, A(c), c.req.param("id"))));
   app.post("/api/formations/:id/coffre", async (c) => {
     const { fichier, champs } = await fichierDe(c);
-    return c.json(await formations.deposerDansCoffre(s, A(c), c.req.param("id"), fichier, champs.partageable !== "non"), 201);
+    return c.json(await formations.deposerDansCoffre(s, A(c), c.req.param("id"), fichier, { partageable: champs.partageable !== "non", categorie: champs.categorie || undefined, description: champs.description || undefined }), 201);
   });
-  app.patch("/api/coffre/:id", async (c) => (await formations.reglerPartage(s, A(c), c.req.param("id"), (await corps(c)).partageable === true), c.json({ ok: true })));
+  app.patch("/api/coffre/:id", async (c) => {
+    const d = await corps(c);
+    if (Object.keys(d).length === 1 && "partageable" in d) await formations.reglerPartage(s, A(c), c.req.param("id"), d.partageable === true);
+    else await formations.modifierFichierCoffre(s, A(c), c.req.param("id"), d);
+    return c.json({ ok: true });
+  });
   app.delete("/api/coffre/:id", async (c) => (await formations.supprimerDuCoffre(s, A(c), c.req.param("id")), c.json({ ok: true })));
+  app.post("/api/coffre/:id/restaurer", async (c) => (await formations.restaurerDuCoffre(s, A(c), c.req.param("id")), c.json({ ok: true })));
+  app.delete("/api/coffre/:id/definitif", async (c) => (await formations.purgerDuCoffre(s, A(c), c.req.param("id")), c.json({ ok: true })));
+
+  // Coffre-fort pédagogique PAR PARCOURS (onglet dédié) : pédagogique + administratif.
+  app.get("/api/coffres-parcours", async (c) => c.json(await coffre.listerCoffresParcours(s, A(c))));
+  app.get("/api/coffres-parcours/:id", async (c) => c.json(await coffre.lireCoffreParcours(s, A(c), c.req.param("id"))));
+  app.get("/api/coffres-parcours/:id/programme", async (c) => telechargement(c, await coffre.documentProgrammeParcours(s, A(c), c.req.param("id"))));
+  app.get("/api/coffres-parcours/:id/zip", async (c) => telechargement(c, await coffre.exporterCoffreZip(s, A(c), c.req.param("id"))));
+  app.get("/api/outils/:id/document", async (c) => telechargement(c, await coffre.documentOutilParcours(s, A(c), c.req.param("id"), c.req.query("corrige") === "1")));
   app.get("/api/coffre/:id/telecharger", async (c) => telechargement(c, await formations.telechargerDuCoffre(s, A(c), c.req.param("id"))));
   app.get("/api/coffres", async (c) => c.json(await formations.coffresDeLApprenant(s, A(c))));
 
@@ -207,16 +237,37 @@ export function creerApp(s: Services, options: { production?: boolean } = {}) {
   app.get("/api/ia/etat", (c) => c.json(pedagogieIa.etatIa(s, A(c))));
   app.post("/api/ia/qcm", async (c) => c.json(await pedagogieIa.proposerQcm(s, A(c), await corps(c))));
   app.post("/api/ia/programme", async (c) => c.json(await pedagogieIa.proposerProgramme(s, A(c), await corps(c))));
-  app.get("/api/outils", async (c) => c.json(await formations.listerOutils(s, A(c))));
+  // « Modification 1 » : parcours, tests et supports — par l'IA (mode « ia ») ou par la trame (mode « trame »).
+  app.post("/api/ia/parcours", async (c) => c.json(await pedagogieIa.proposerParcours(s, A(c), await corps(c))));
+  app.post("/api/ia/test", async (c) => c.json(await pedagogieIa.proposerTest(s, A(c), await corps(c))));
+  app.post("/api/ia/plan-support", async (c) => c.json(await pedagogieIa.proposerPlanSupport(s, A(c), await corps(c))));
+  app.post("/api/supports", async (c) => c.json(await pedagogieIa.produireSupport(s, A(c), await corps(c)), 201));
+  app.post("/api/supports/tous", async (c) => c.json(await pedagogieIa.produireTousLesSupports(s, A(c), await corps(c)), 201));
+  app.get("/api/outils", async (c) => c.json(await formations.listerOutils(s, A(c), { archives: c.req.query("archives") === "1" })));
+  app.post("/api/outils/:id/restaurer", async (c) => c.json(await formations.restaurerOutil(s, A(c), c.req.param("id"))));
   app.post("/api/outils", async (c) => c.json(await formations.enregistrerOutil(s, A(c), await corps(c)), 201));
   app.put("/api/outils/:id", async (c) => c.json(await formations.enregistrerOutil(s, A(c), await corps(c), c.req.param("id"))));
   app.delete("/api/outils/:id", async (c) => (await formations.supprimerOutil(s, A(c), c.req.param("id")), c.json({ ok: true })));
 
   // ——— Module 4.1 : répertoires ———
-  app.get("/api/entreprises", async (c) => c.json(await repertoire.listerEntreprises(s, A(c))));
+  app.get("/api/entreprises", async (c) => c.json(await repertoire.listerEntreprises(s, A(c), { archives: c.req.query("archives") === "1" })));
+  app.post("/api/entreprises/:id/archiver", async (c) => (await repertoire.archiverFiche(s, A(c), "entreprise", c.req.param("id"), (await corps(c)).archiver !== false), c.json({ ok: true })));
+  app.post("/api/stagiaires/:id/archiver", async (c) => (await repertoire.archiverFiche(s, A(c), "stagiaire", c.req.param("id"), (await corps(c)).archiver !== false), c.json({ ok: true })));
   app.post("/api/entreprises", async (c) => c.json(await repertoire.enregistrerEntreprise(s, A(c), await corps(c)), 201));
   app.patch("/api/entreprises/:id", async (c) => c.json(await repertoire.enregistrerEntreprise(s, A(c), await corps(c), c.req.param("id"))));
-  app.get("/api/stagiaires", async (c) => c.json(await repertoire.listerStagiaires(s, A(c))));
+  app.get("/api/stagiaires", async (c) => c.json(await repertoire.listerStagiaires(s, A(c), { archives: c.req.query("archives") === "1" })));
+
+  // ——— Positionnement avant dossier (« Modification 1 ») ———
+  app.get("/api/positionnements", async (c) => c.json(await positionnements.listerPositionnements(s, A(c), { formation_id: c.req.query("formation_id") || undefined, archives: c.req.query("archives") === "1" })));
+  app.post("/api/positionnements", async (c) => c.json(await positionnements.inviterAuPositionnement(s, A(c), await corps(c)), 201));
+  app.post("/api/positionnements/:id/relancer", async (c) => c.json(await positionnements.relancerPositionnement(s, A(c), c.req.param("id"))));
+  app.post("/api/positionnements/:id/archiver", async (c) => (await positionnements.archiverPositionnement(s, A(c), c.req.param("id"), (await corps(c)).archiver !== false), c.json({ ok: true })));
+  app.get("/api/positionnements/:id/pdf", async (c) => telechargement(c, await positionnements.telechargerPdfPositionnement(s, A(c), c.req.param("id"))));
+
+  // ——— Archives, corbeille, sauvegarde (« faire réapparaître ») ———
+  app.get("/api/archives", async (c) => c.json(await sauvegarde.archivesEtCorbeille(s, A(c))));
+  app.get("/api/sauvegarde/export", async (c) => telechargement(c, await sauvegarde.exporterMesDonnees(s, A(c))));
+  app.post("/api/sauvegarde/import", async (c) => c.json(await sauvegarde.importerMesDonnees(s, A(c), (await fichierDe(c)).fichier.contenu)));
   app.post("/api/stagiaires", async (c) => c.json(await repertoire.enregistrerStagiaire(s, A(c), await corps(c)), 201));
   app.patch("/api/stagiaires/:id", async (c) => c.json(await repertoire.enregistrerStagiaire(s, A(c), await corps(c), c.req.param("id"))));
 

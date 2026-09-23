@@ -95,4 +95,32 @@ export const courriels = {
       "Les supports pédagogiques mis à votre disposition par votre formateur sont accessibles dans votre espace personnel.",
     ], { libelle: "Ouvrir mon espace", url: a.lien }),
   }),
+
+  // ——— « Modification 1 » : positionnement avant dossier ———
+
+  invitationPositionnement: (a: { of_nom: string; prenom: string; nom: string; email: string; formateur: string; formation: string; message: string; lien: string; expire: string }): Courriel => ({
+    sujet: `Votre positionnement — ${a.formation}`,
+    corps_html: habiller(a.of_nom, `Bonjour ${a.prenom} ${a.nom},`, [
+      `${e(a.formateur)} vous invite à vous positionner sur la formation <strong>${e(a.formation)}</strong>.`,
+      a.message ? `<em>« ${e(a.message)} »</em>` : "",
+      "Sur votre page dédiée, deux étapes d'une quinzaine de minutes : <strong>A.</strong> le recueil de vos besoins, <strong>B.</strong> le test de positionnement. Vous pouvez enregistrer et reprendre plus tard, puis signer en ligne. Un PDF de vos réponses est alors produit, téléchargeable par vous et par votre formateur.",
+      `Ce lien est personnel (adressé à ${e(a.email)}) et valable jusqu'au ${e(a.expire)}.`,
+    ].filter(Boolean), { libelle: "Commencer mon positionnement", url: a.lien }),
+  }),
+
+  positionnementComplet: (a: { of_nom: string; prenom: string; apprenant: string; formation: string; score: string; lien: string }): Courriel => ({
+    sujet: `Positionnement complété — ${a.apprenant}`,
+    corps_html: habiller(a.of_nom, `Bonjour ${a.prenom},`, [
+      `${e(a.apprenant)} a complété et signé son positionnement pour <strong>${e(a.formation)}</strong> (score : ${e(a.score)}).`,
+      "Le PDF signé est joint ; il est aussi disponible dans l'application, dans le coffre-fort du parcours.",
+    ], { libelle: "Voir les positionnements", url: a.lien }),
+  }),
+
+  positionnementConfirmation: (a: { of_nom: string; prenom: string; formation: string; lien: string }): Courriel => ({
+    sujet: `Votre positionnement est enregistré — ${a.formation}`,
+    corps_html: habiller(a.of_nom, `Bonjour ${a.prenom},`, [
+      `Merci : votre positionnement pour <strong>${e(a.formation)}</strong> est complet et signé. Le PDF de vos réponses est joint à ce message.`,
+      "Votre formateur s'en servira pour adapter la formation à vos besoins et à votre niveau.",
+    ], { libelle: "Revoir ou télécharger mon positionnement", url: a.lien }),
+  }),
 };
