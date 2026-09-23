@@ -73,7 +73,7 @@ Tu dois voir, entre autres :
 [s4m] base vide — création du jeu de démonstration…
 [s4m] compte formateur pilote ludoalbisser@gmail.com : créé (candidature validée)
 [s4m] application prête sur http://localhost:3001
-[s4m] courrier : boîte locale (rien ne part) · PDF : Chromium trouvé · IA pédagogique : désactivée
+[s4m] courrier : boîte locale, sauf réglages SMTP enregistrés dans l'application · PDF : Chromium trouvé · IA (.env) : non configurée — réglable dans Organisme → Assistant IA
 ```
 
 Ouvre **<http://localhost:3001>**.
@@ -102,8 +102,13 @@ Ouvre **<http://localhost:3001>**.
 | Tu veux… | Où |
 |---|---|
 | Générer un parcours avec titre, heures, jours, tarif, nombre de modules | *Mes formations → Nouvelle formation* → **Générer le parcours** |
-| Aménager les modules, puis enregistrer (à tout moment) | Onglet *2. Parcours* de la formation → **Enregistrer** |
+| Lire ce que l'IA a appris du sujet (recherche web), l'actualiser | Onglet *2. Enjeux* de la formation → **Analyser les enjeux** |
+| Aménager les modules, puis enregistrer (à tout moment) | Onglet *3. Parcours* de la formation → **Enregistrer** |
 | Générer test de positionnement, évaluation des acquis, supports PPTX | Fiche formation → carte **Kit pédagogique du parcours** |
+| Envoyer (ou renvoyer) un formulaire à un apprenant : recueil, positionnement, acquis, satisfaction | Dans le dossier, onglet *Synthèse*, sous chaque apprenant : **Envoyer / Renvoyer** ; le document d'invitation (PDF avec QR code) est à côté |
+| Régler l'assistant IA (clé d'API, modèle, recherche web) | Compte **admin** → **Organisme → Assistant IA** |
+| Régler l'envoi réel des e-mails, faire un test | Compte **admin** → **Organisme → E-mails** |
+| Renvoyer un e-mail parti en échec | **Boîte d'envoi** → onglet *Échecs* → ouvrir → **Renvoyer** |
 | Le coffre-fort d'un parcours (pédagogique + administratif) | Menu **Coffre-fort pédagogique** |
 | Créer un apprenant et son entreprise d'un coup | *Apprenants et entreprises → Nouvelle fiche apprenant* → « + Créer une nouvelle entreprise… » |
 | Inviter un apprenant à se positionner | Bouton **Positionner** sur l'apprenant, ou menu **Positionnements** |
@@ -113,23 +118,52 @@ Ouvre **<http://localhost:3001>**.
 
 Le scénario complet, étape par étape, est dans [`RECETTE_NARRATIVE.md`](RECETTE_NARRATIVE.md).
 
-### 3.3 Activer l'assistant IA de l'espace pédagogique (facultatif)
+### 3.3 Activer l'assistant IA de l'espace pédagogique
 
-Sans IA, **tout fonctionne** : les générateurs utilisent la trame pédagogique automatique. Pour activer l'IA :
+Depuis la version 7, **plus de trame sans IA** : les générateurs (dossier d'enjeux, parcours, tests, supports) ont
+besoin de l'assistant. Sans lui, leurs boutons sont grisés et expliquent où l'activer ; **tout le reste fonctionne**
+(formations, dossiers, conventions, formulaires, e-mails).
 
-1. Crée une clé d'API sur <https://console.anthropic.com> (compte payant à l'usage).
-2. Copie `.env.example` en `.env`, puis renseigne :
-   ```
-   ANTHROPIC_API_KEY=sk-ant-...ta-cle...
-   IA_MODELE=nom-du-modele
-   IA_RECHERCHE_WEB=oui      # facultatif : l'IA fait une recherche web avant de rédiger (plus long, plus coûteux)
-   ```
-   Le nom exact du modèle est sur <https://docs.claude.com>, page « Models ».
-3. Relance `npm start` : la ligne de démarrage affiche `IA pédagogique : activée (…)`.
+**Pour essayer sans clé** (démonstration, tests) : mets `IA_FACTICE=oui` dans `.env` et relance. L'assistant répond
+alors sans réseau, avec des contenus fictifs marqués « [démonstration] ». Jamais en production (ignoré si
+`NODE_ENV=production`).
 
-Dans chaque générateur, le choix **Moteur → Assistant IA** devient disponible. L'IA ne reçoit que la description
-de la formation (jamais un apprenant, une entreprise ou un prix) et ne touche jamais aux conventions ni aux pièces.
-**Le fichier `.env` ne doit jamais être envoyé sur GitHub** (déjà exclu par `.gitignore`).
+**Pour l'activer réellement**, tout se règle dans l'application, avec le compte administrateur de l'organisme :
+
+1. Crée une clé d'API sur <https://console.anthropic.com> (compte payant à l'usage). Conseil : une clé rattachée à
+   un *workspace* ; sinon, note l'identifiant du workspace.
+2. Connecte-toi en **admin** → **Organisme → Assistant IA** : active l'interrupteur, colle la clé (elle est chiffrée
+   en base et jamais réaffichée), choisis le modèle (**Claude Sonnet 5**, recommandé), laisse **Autoriser la
+   recherche web** activé (nécessaire aux dossiers d'enjeux), puis **Enregistrer**. Aucun redémarrage.
+3. Côté formateur, les boutons de génération sont actifs et affichent le moteur utilisé (« claude-sonnet-5 +
+   recherche web »).
+
+**Coûts, ordre de grandeur** (facturés par Anthropic sur ton compte) : un parcours complet ≈ 0,20 – 0,50 € ; un
+support de module ≈ 0,10 – 0,20 € ; une recherche web ≈ 0,01 €. Opus coûte environ deux fois plus, Haiku nettement
+moins. Chaque appel est journalisé (jetons, recherches, durée) dans le journal du dossier de l'organisme.
+
+L'IA ne reçoit que la description de la formation (jamais un apprenant, une entreprise ou un prix) et ne touche
+jamais aux conventions ni aux pièces. Les variables `ANTHROPIC_API_KEY`, `IA_MODELE`, `IA_RECHERCHE_WEB` de `.env`
+restent possibles comme **valeurs par défaut du serveur** ; les réglages de l'organisme priment.
+
+### 3.3 bis Envoyer réellement les e-mails
+
+Par défaut, aucun e-mail ne part : ils sont consignés dans la **Boîte d'envoi** (pratique pour tester). Pour
+l'envoi réel, compte **admin** → **Organisme → E-mails** :
+
+1. Active **Envoyer réellement les e-mails**.
+2. Clique un préréglage (**Gmail / Google Workspace**, Brevo, OVH, IONOS) ou saisis l'hôte, le port et l'option
+   « connexion sécurisée » (465 = TLS direct, 587 = STARTTLS).
+3. Identifiant (ton adresse), adresse d'expédition (ce que voient les destinataires), mot de passe (chiffré, jamais
+   réaffiché). **Avec Gmail ou Google Workspace, ton mot de passe habituel ne marche pas** : compte Google →
+   Sécurité → Validation en deux étapes → *Mots de passe des applications* → crée-en un et colle les 16 caractères.
+4. **Enregistrer**, puis **M'envoyer un e-mail de test** : le résultat (envoyé, consigné seulement, ou échec avec la
+   cause) s'affiche en clair. Vérifie aussi les indésirables la première fois.
+
+Les formulaires de l'apprenant (recueil, positionnement, acquis, satisfaction) partent alors automatiquement au bon
+moment du dossier, avec un lien personnel et un PDF d'invitation à QR code ; les e-mails en échec se renvoient
+depuis la Boîte d'envoi une fois les réglages corrigés. `COURRIER_MODE=smtp` et `SMTP_URL` dans `.env` restent des
+valeurs par défaut.
 
 ### 3.4 Lancer les tests
 
@@ -220,11 +254,13 @@ ARCHIVE_DIR=/srv/s4m/archive
 AMORCE=vide
 ADMIN_EMAIL=ton.adresse@skills4mation.fr
 ADMIN_MOT_DE_PASSE=une-phrase-longue-et-unique
-COURRIER_MODE=smtp
-SMTP_URL=smtps://utilisateur:motdepasse@smtp.fournisseur:465
-COURRIER_EXPEDITEUR=Skills4mation <no-reply@skills4mation.fr>
+CLE_SECRETS=                  # facultatif : 64 caractères hexadécimaux ; vide = fichier .cle-secrets créé à côté de la base (à sauvegarder avec elle)
 COMPTE_PILOTE_EMAIL=          # VIDE en production : pas de compte de test créé au démarrage
 ```
+
+L'envoi des e-mails et l'assistant IA se règlent ensuite **dans l'application** (Organisme → E-mails, Organisme →
+Assistant IA), pas dans `.env`. `COURRIER_MODE=smtp` + `SMTP_URL` et `ANTHROPIC_API_KEY` restent possibles ici comme
+valeurs par défaut.
 
 ```bash
 # 4. Démarrer en tâche de fond, et redémarrer tout seul après un redémarrage du serveur
@@ -280,7 +316,8 @@ C'est ce qui sépare un prototype d'un outil professionnel. Le dépôt applique 
    `npm run db:generate -- --name <sujet>` crée un **nouveau** fichier.
 7. **Journal et hypothèses à jour.** Une entrée dans `DEV_LOG.md` par évolution ; tout choix fait à ta place va
    dans `docs/HYPOTHESES.md`.
-8. **Secrets hors du code.** Clés, mots de passe et SMTP vont dans `.env` sur la machine, jamais dans Git.
+8. **Secrets hors du code.** Clé d'API IA et mot de passe SMTP se saisissent dans l'application (chiffrés en base) ;
+   `.env`, `.cle-secrets` et `donnees/` restent sur la machine, jamais dans Git.
 9. **Avec Claude.** Donne-lui le dépôt entier (dossier connecté), demande-lui de lancer `npm run verifier` et de
    **montrer** le résultat. Une affirmation « c'est corrigé » sans test vert n'a aucune valeur.
 
@@ -293,8 +330,11 @@ C'est ce qui sépare un prototype d'un outil professionnel. Le dépôt applique 
 | `node` n'est pas reconnu | Node.js n'est pas installé, ou le terminal a été ouvert avant l'installation | Installer Node 22, puis rouvrir le terminal |
 | `EADDRINUSE :3001` | L'application tourne déjà | Fermer l'autre terminal, ou mettre `PORT=3002` dans `.env` |
 | « PDF : indisponible » | Chrome ou Edge introuvable | Aucun blocage : les pièces sont en HTML imprimable. Sinon, renseigner `CHROMIUM_PATH` |
-| Les boutons IA n'apparaissent pas | `ANTHROPIC_API_KEY` ou `IA_MODELE` vide | Voir 3.2, puis relancer |
-| « Clé d'API IA refusée » | Clé erronée ou révoquée | Recréer une clé sur la console Anthropic |
+| Les boutons de génération sont grisés (« L'assistant IA n'est pas configuré ») | Aucune clé enregistrée, ou assistant désactivé | Admin → **Organisme → Assistant IA** (voir 3.3) ; pour essayer sans clé, `IA_FACTICE=oui` |
+| « Clé d'API IA refusée » | Clé erronée ou révoquée | Recréer une clé sur la console Anthropic et la coller dans Organisme → Assistant IA |
+| « Identifiants refusés par le serveur SMTP » avec Gmail | Mot de passe habituel utilisé | Créer un **mot de passe d'application** Google (voir 3.3 bis) |
+| Les e-mails restent « Journalisé » dans la boîte d'envoi | Envoi réel non activé | Admin → **Organisme → E-mails** → **Envoyer réellement les e-mails**, puis test |
+| « Ce lien n'est plus valable » sur la page d'un formulaire apprenant | Lien de plus de 45 jours, ou remplacé par un renvoi | Ouvrir l'e-mail le plus récent, ou **Renvoyer** depuis le dossier |
 | Un test échoue après une modification | Une règle métier a changé | Lire le nom du test : il cite l'exigence. Corriger le code, ou le test si la règle a **vraiment** changé (et le noter au DEV_LOG) |
 | « Another git process seems to be running » | Un verrou Git est resté | Fermer VS Code, puis supprimer le fichier `.git\index.lock` |
 | « compte formateur pilote … ADRESSE DÉJÀ UTILISÉE » au démarrage | `ludoalbisser@gmail.com` sert déjà à un compte apprenant de ta base | Repartir d'une base neuve (supprimer `donnees`), ou mettre une autre adresse dans `COMPTE_PILOTE_EMAIL` |

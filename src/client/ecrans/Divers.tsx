@@ -81,8 +81,8 @@ function Tableau({ titre, entetes, lignes }: { titre: string; entetes: string[];
 const TYPES_COURRIER: Record<string, string> = {
   invitation_apprenant: "Invitation", relance_apprenant: "Relance", candidature_soumise: "Candidature", candidature_decision: "Décision", demande_validation: "Demande de validation",
   renvoi_brouillon: "Renvoi", pieces_financement: "Pièces du financement", odm: "Ordre de mission", elements_pedagogiques: "Convocation", satisfaction_froid: "Satisfaction à froid",
-  formulaire_recueil: "Formulaire : recueil des besoins", formulaire_positionnement: "Formulaire : positionnement", formulaire_acquis: "Formulaire : acquis",
-  formulaire_satisfaction_chaud: "Formulaire : satisfaction à chaud", formulaire_satisfaction_froid: "Formulaire : satisfaction à froid", test_smtp: "E-mail de test",
+  formulaire_recueil: "Formulaire : Recueil des besoins", formulaire_positionnement: "Formulaire : Test de positionnement", formulaire_acquis: "Formulaire : Évaluation des acquis",
+  formulaire_satisfaction_chaud: "Formulaire : Satisfaction à chaud", formulaire_satisfaction_froid: "Formulaire : Satisfaction à froid", test_smtp: "E-mail de test",
 };
 /** Les types dérivés (`formulaire_<type>_confirmation`, `formulaire_<type>_recu`) sont reconnus par leur suffixe. */
 const libelleType = (type: string) => TYPES_COURRIER[type] ?? (type.startsWith("formulaire_") && type.endsWith("_confirmation") ? "Confirmation formulaire" : type.startsWith("formulaire_") && type.endsWith("_recu") ? "Formulaire signé reçu" : type);

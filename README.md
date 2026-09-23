@@ -60,7 +60,7 @@ npm run test:e2e   # parcours dans un vrai navigateur
 Depuis le cahier des charges oral du 23/09/2026 ([`docs/ANALYSE_23-09.md`](docs/ANALYSE_23-09.md)), l'accueil du formateur
 présente **trois espaces** :
 
-- **Espace pédagogique** : mes formations (programme, coffre-fort), outils pédagogiques. L'assistant IA y propose des brouillons ;
+- **Espace pédagogique** : mes formations (enjeux, parcours, coffre-fort), outils pédagogiques. L'assistant IA y propose des brouillons ;
 - **Espace apprenant** : les fiches des apprenants et des entreprises. Chaque apprenant invité suit son parcours en cinq
   sections : étape préliminaire, validation, demande de financement, accord, formation ;
 - **Espace formation** : le générateur de conventions, le pipeline « Mes dossiers », le BPF, la boîte d'envoi.
@@ -76,9 +76,9 @@ Pour lancer, tester et mettre en ligne pas à pas : [`docs/GUIDE_LANCEMENT.md`](
 scénario de recette raconté, avec la lecture Qualiopi : [`docs/RECETTE_NARRATIVE.md`](docs/RECETTE_NARRATIVE.md) ·
 manquements, points en suspens et to-do : [`docs/SUITE_ET_TODO.md`](docs/SUITE_ET_TODO.md).
 
-- **Générateur de parcours** (titre, heures, jours, tarif, nombre de modules → modules complets), par une trame
-  pédagogique toujours disponible ou par l'IA ; même principe pour le **test de positionnement**, l'**évaluation des
-  acquis** et les **supports PPTX (20 diapositives par module)**.
+- **Générateur de parcours** (titre, heures, jours, tarif, nombre de modules → modules complets) par l'assistant IA ;
+  même principe pour le **test de positionnement**, l'**évaluation des acquis** et les **supports PPTX (20
+  diapositives par module)**. Voir « Version 7 » ci-dessous : plus de trame sans IA.
 - **Coffre-fort pédagogique par parcours** : partie pédagogique (supports, tests, programme) et administrative
   (documents qualité, positionnements signés, pièces de chaque dossier), dépôt et téléchargement, ZIP.
 - **Positionnement avant dossier** : invitation par e-mail, page dédiée sans compte, recueil + test, date, signature
@@ -87,6 +87,31 @@ manquements, points en suspens et to-do : [`docs/SUITE_ET_TODO.md`](docs/SUITE_E
   modifiables ; **menus déroulants** partout où c'est possible.
 - **Profil et candidature** toujours accessibles, justificatifs avec échéance.
 - **Archives, corbeille, historique des versions, brouillons, sauvegarde** : rien ne se perd, tout réapparaît.
+
+### Version 7 du 23/09/2026
+
+- **L'IA se règle dans l'application** : l'administrateur ouvre **Organisme → Assistant IA**, colle sa clé d'API
+  Anthropic (chiffrée en base, jamais réaffichée), choisit le modèle (Claude Sonnet 5 recommandé) et autorise ou non
+  la recherche web. Plus rien à éditer dans `.env`, plus de redémarrage. Ordre de grandeur des coûts, affiché sur
+  l'écran : un parcours complet ≈ 0,20 – 0,50 €, un support de module ≈ 0,10 – 0,20 €, une recherche web ≈ 0,01 €.
+- **Dossier d'enjeux par formation** : avant toute génération, l'IA mène une recherche web sur le sujet réel
+  (enjeux, cadre réglementaire, notions clés, erreurs fréquentes, pratiques actuelles, sources) ; ce dossier est
+  enregistré sur la formation (onglet « Enjeux ») et fonde le parcours, les tests et les supports.
+- **Plus de « trame » sans IA** : sans assistant configuré, les boutons de génération sont grisés et expliquent où
+  l'activer ; tout le reste de l'application fonctionne. Pour essayer sans clé : `IA_FACTICE=oui` dans `.env`
+  (réponses fictives marquées « [démonstration] », jamais en production).
+- **Formulaires de l'apprenant** (recueil des besoins, test de positionnement, évaluation des acquis, satisfaction à
+  chaud et à froid) : chaque apprenant reçoit un e-mail avec un lien personnel (45 jours) et un document d'invitation
+  PDF avec QR code ; la page s'ouvre à son nom, sans compte ; il répond, enregistre s'il veut reprendre plus tard, date,
+  signe ; la pièce signée est validée dans le dossier et lui est renvoyée. Envoi automatique au bon moment du dossier
+  (création → recueil + positionnement ; formation terminée → acquis + à chaud ; J+90 → à froid ; relance à J+7), et
+  bouton **Envoyer / Renvoyer** sous chaque apprenant du dossier. Le formateur ne saisit plus de réponses à la place
+  de l'apprenant.
+- **E-mails réglés dans l'application** : **Organisme → E-mails** (hôte, port, identifiant, mot de passe chiffré,
+  préréglages Gmail / Brevo / OVH / IONOS, e-mail de test). Avec Gmail ou Google Workspace, utilisez un « mot de passe
+  d'application ». La boîte d'envoi permet de renvoyer un e-mail en échec.
+- **Coût horaire du formateur supprimé** : la rémunération se calcule dans chaque dossier, par la commission de
+  portage de l'organisme (prix de vente − commission = net formateur).
 
 ## Ce que fait l'application, module par module
 
@@ -144,11 +169,13 @@ Copiez `.env.example` en `.env`. Tout a une valeur par défaut raisonnable pour 
 | `DATABASE_URL` | Dossier de la base embarquée, **ou** `postgres://…` pour un serveur PostgreSQL | `./donnees/base` |
 | `ARCHIVE_DIR` | Racine de l'archive des pièces | `./donnees/archive` |
 | `APP_URL` | Adresse publique (liens des e-mails) | déduite du port |
-| `COURRIER_MODE` | `boite-locale` (rien ne part) ou `smtp` | `boite-locale` |
-| `SMTP_URL`, `COURRIER_EXPEDITEUR` | Envoi réel des e-mails | — |
+| `COURRIER_MODE` | `boite-locale` (rien ne part) ou `smtp` — valeur **par défaut**, remplacée par les réglages **Organisme → E-mails** | `boite-locale` |
+| `SMTP_URL`, `COURRIER_EXPEDITEUR` | Envoi réel des e-mails, à défaut de réglages dans l'application | — |
 | `CHROMIUM_PATH` | Chrome, Edge ou Chromium pour produire les PDF | détection automatique |
 | `AMORCE` | Première ouverture : `demonstration` ou `vide` (avec `ADMIN_EMAIL` et `ADMIN_MOT_DE_PASSE`) | `demonstration` |
-| `ANTHROPIC_API_KEY`, `IA_MODELE` | Assistant IA de l'espace pédagogique (facultatif) : brouillons de QCM, d'objectifs et de programme | désactivé |
+| `ANTHROPIC_API_KEY`, `IA_MODELE`, `IA_WORKSPACE_ID`, `IA_RECHERCHE_WEB` | Assistant IA **par défaut** du serveur ; les réglages **Organisme → Assistant IA** priment | désactivé |
+| `IA_FACTICE` | `oui` : assistant factice (réponses fictives « [démonstration] ») pour essayer sans clé ; ignoré en production | `non` |
+| `CLE_SECRETS` | Clé de chiffrement (64 caractères hexadécimaux) des secrets enregistrés en base ; vide = fichier `.cle-secrets` créé à côté de la base | — |
 
 Sans Chromium, l'application fonctionne : les pièces sont archivées en HTML imprimable au lieu de PDF.
 Sous Windows, Edge est détecté automatiquement.
@@ -175,7 +202,10 @@ exécutée automatiquement.
    Supprimez `donnees/` et démarrez : la base ne contient qu'un organisme vierge et votre compte administrateur.
 2. Connectez-vous, ouvrez **Organisme** et saisissez votre identité (SIRET, déclaration d'activité, représentant,
    tribunal, IBAN, signature…). Tant qu'un champ obligatoire manque, aucun dossier ne peut être validé.
-3. Pour l'envoi réel des e-mails : `COURRIER_MODE=smtp` et `SMTP_URL=smtps://utilisateur:motdepasse@serveur:465`.
+3. Pour l'envoi réel des e-mails : **Organisme → E-mails** (préréglage Gmail, Brevo, OVH ou IONOS, identifiant, mot de
+   passe — avec Gmail, un « mot de passe d'application »), puis « M'envoyer un e-mail de test ». `COURRIER_MODE=smtp`
+   et `SMTP_URL` dans `.env` restent possibles comme valeurs par défaut.
+   Pour l'assistant IA : **Organisme → Assistant IA**, clé d'API Anthropic et modèle.
 4. Pour un hébergement : un serveur Node 22 en France ou dans l'UE, `DATABASE_URL=postgres://…` vers un
    PostgreSQL managé, `NODE_ENV=production`, HTTPS devant. Les mêmes migrations s'appliquent.
 

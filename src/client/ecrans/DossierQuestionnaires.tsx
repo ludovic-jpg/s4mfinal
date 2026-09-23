@@ -250,7 +250,7 @@ function ModaleEnvoi({ d, ligne, prenom, fermer }: { d: Dossier; ligne: EtatForm
   );
 }
 
-function LigneFormulaire({ d, ligne, prenom }: { d: Dossier; ligne: EtatFormulaire; prenom: string }) {
+function LigneFormulaire({ d, ligne, prenom, sansEmail }: { d: Dossier; ligne: EtatFormulaire; prenom: string; sansEmail: boolean }) {
   const [modale, setModale] = useState<"envoi" | "piece" | null>(null);
   const envoyable = ligne.ouvert && ligne.statut !== "valide" && !d.archive;
   const pastille =
@@ -286,7 +286,7 @@ function LigneFormulaire({ d, ligne, prenom }: { d: Dossier; ligne: EtatFormulai
           <Bouton variante="discret" taille="sm" icone={<Eye className="size-3.5" aria-hidden />} onClick={() => setModale("piece")}>Voir la pièce</Bouton>
         )}
         {envoyable && (
-          <Bouton variante={ligne.envois > 0 ? "secondaire" : "primaire"} taille="sm" icone={<Send className="size-3.5" aria-hidden />} onClick={() => setModale("envoi")}>
+          <Bouton variante={ligne.envois > 0 ? "secondaire" : "primaire"} taille="sm" icone={<Send className="size-3.5" aria-hidden />} disabled={sansEmail} title={sansEmail ? "Ajoutez d'abord une adresse e-mail à la fiche de l'apprenant" : undefined} onClick={() => setModale("envoi")}>
             {ligne.envois > 0 ? "Renvoyer" : "Envoyer"}
           </Bouton>
         )}
@@ -305,7 +305,7 @@ export function FormulairesApprenant({ d, stagiaireId }: { d: Dossier; stagiaire
   const acteur = useActeur();
   const etat = useQuery({ queryKey: ["formulaires", d.id], queryFn: () => api.get<EtatFormulaire[]>(`/dossiers/${d.id}/formulaires`), enabled: acteur.role !== "apprenant" });
   const st = d.stagiaires.find((s) => s.id === stagiaireId);
-  const prenom = st ? `${st.prenom} ${st.nom}` : "l'apprenant";
+  const prenom = st ? `${st.prenom} ${st.nom}` : "l'apprenant"; // nom complet, affiché dans les libellés d'envoi
   if (etat.isPending) return <p className="px-4 py-3 text-[13px] text-encre-3">Chargement des formulaires…</p>;
   if (etat.error) return <Alerte ton="danger">{etat.error.message}</Alerte>;
   const lignes = ORDRE.map((type) => etat.data.find((l) => l.stagiaire_id === stagiaireId && l.type === type)).filter((l): l is EtatFormulaire => l !== undefined);
@@ -323,7 +323,7 @@ export function FormulairesApprenant({ d, stagiaireId }: { d: Dossier; stagiaire
       )}
       <ul className="divide-y divide-trait">
         {lignes.map((l) => (
-          <LigneFormulaire key={l.type} d={d} ligne={l} prenom={prenom} />
+          <LigneFormulaire key={l.type} d={d} ligne={l} prenom={prenom} sansEmail={!st?.email} />
         ))}
       </ul>
     </section>

@@ -260,7 +260,7 @@ export function creerApp(s: Services, options: { production?: boolean } = {}) {
   app.get("/api/coffres", async (c) => c.json(await formations.coffresDeLApprenant(s, A(c))));
 
   // Espace pédagogique — propositions de l'IA : des brouillons, jamais enregistrés sans le formateur.
-  app.get("/api/ia/etat", (c) => c.json(pedagogieIa.etatIa(s, A(c))));
+  app.get("/api/ia/etat", async (c) => c.json(await pedagogieIa.etatIa(s, A(c))));
   app.post("/api/ia/qcm", async (c) => c.json(await pedagogieIa.proposerQcm(s, A(c), await corps(c))));
   app.post("/api/ia/programme", async (c) => c.json(await pedagogieIa.proposerProgramme(s, A(c), await corps(c))));
   // « Modification 1 » puis version 7 : dossier d'enjeux (recherche web), parcours, tests et supports — toujours par l'IA.

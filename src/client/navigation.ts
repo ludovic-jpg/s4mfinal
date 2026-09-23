@@ -75,10 +75,10 @@ const ESPACES_ADMIN: readonly Espace[] = [
   {
     cle: "administration",
     titre: "Administration",
-    description: "Candidatures des formateurs et configuration de l'organisme.",
+    description: "Candidatures des formateurs ; identité de l'organisme, assistant IA et envoi des e-mails.",
     liens: [
       { vers: "/admin/candidatures", libelle: "Candidatures", icone: "candidatures" },
-      { vers: "/admin/organisme", libelle: "Organisme", icone: "organisme" },
+      { vers: "/admin/organisme", libelle: "Organisme", icone: "organisme", aide: "Identité, assistant IA, e-mails" },
     ],
   },
 ];

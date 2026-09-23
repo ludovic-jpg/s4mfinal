@@ -48,7 +48,7 @@ function LienIndisponible({ erreur }: { erreur: Error }) {
       <div className="mx-auto mb-4 grid size-14 place-items-center rounded-full bg-papier-3 text-encre-2"><Link2Off className="size-7" aria-hidden /></div>
       <h1 className="text-[22px] leading-tight font-semibold">{perime ? "Ce lien a expiré ou n'est pas valide" : "Impossible d'ouvrir ce formulaire"}</h1>
       <p className="mx-auto mt-2 max-w-[44ch] text-encre-2">
-        {perime ? "Demandez à votre formateur de vous renvoyer le formulaire : vous recevrez un nouveau lien par e-mail." : erreur.message}
+        {perime ? "Un formulaire renvoyé remplace le lien précédent : si vous avez reçu plusieurs e-mails, ouvrez le plus récent. Sinon, demandez à votre formateur de vous le renvoyer : vous recevrez un nouveau lien." : erreur.message}
       </p>
     </div>
   );
@@ -113,7 +113,9 @@ function Formulaire({ jeton, p }: { jeton: string; p: FormulairePublic }) {
   const [consentement, setConsentement] = useState(false);
   const [enregistreLe, setEnregistreLe] = useState<string | null>(null);
   const modifie = useRef(false);
-  const toucher = () => { modifie.current = true; };
+  // La liste « il manque… » n'apparaît qu'une fois la saisie commencée : à l'ouverture, elle serait décourageante.
+  const [aCommence, setACommence] = useState(brouillon !== null);
+  const toucher = () => { modifie.current = true; setACommence(true); };
 
   const reponses: ReponsesTexte | ReponsesQcm = p.questionnaire ? qcm : texte;
   const enregistrer = useMutation({
@@ -131,6 +133,12 @@ function Formulaire({ jeton, p }: { jeton: string; p: FormulairePublic }) {
     const minuterie = setInterval(() => { if (modifie.current && !enregistrer.isPending) enregistrer.mutate(); }, 20_000);
     return () => clearInterval(minuterie);
   }, [p.statut, p.ouvert, enregistrer]);
+
+  // Refus du serveur : on amène l'alerte à l'écran (sur un téléphone, elle est souvent hors de vue).
+  const refAlerte = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (signer.error) refAlerte.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [signer.error]);
 
   if (p.statut === "complet") return <Confirmation jeton={jeton} p={p} />;
 
@@ -266,7 +274,7 @@ function Formulaire({ jeton, p }: { jeton: string; p: FormulairePublic }) {
       </section>
 
       {(erreursListe.length > 0 || erreurGenerale) && (
-        <div className="mb-4">
+        <div ref={refAlerte} className="mb-4">
           <Alerte ton="danger" titre="Le formulaire n'a pas pu être signé">
             {erreursListe.length > 0 ? <ul className="list-disc space-y-0.5 pl-4">{erreursListe.map((x) => <li key={x}>{x}</li>)}</ul> : erreurGenerale}
           </Alerte>
@@ -275,7 +283,7 @@ function Formulaire({ jeton, p }: { jeton: string; p: FormulairePublic }) {
 
       {/* Actions collantes en bas : toujours à portée de pouce. */}
       <div className="sticky bottom-0 z-10 -mx-4 border-t border-trait bg-papier/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6">
-        {!pret && (
+        {!pret && aCommence && (
           <p className="mb-2 flex items-start gap-1.5 text-[13px] text-encre-2"><CircleAlert className="mt-0.5 size-3.5 shrink-0 text-attente-encre" aria-hidden /><span>Pour valider, il manque : {manques.join(", ")}.</span></p>
         )}
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
@@ -353,7 +361,7 @@ function Confirmation({ jeton, p }: { jeton: string; p: FormulairePublic }) {
       <Carte className="p-5 text-center sm:p-8">
         <div className="mx-auto mb-4 grid size-16 place-items-center rounded-full bg-valide-doux text-valide"><CheckCircle2 className="size-9" strokeWidth={2.2} aria-hidden /></div>
         <h2 className="text-[22px] leading-tight font-semibold">Merci, {p.apprenant.prenom} !</h2>
-        <p className="mt-2 text-encre-2">Votre <strong>{p.libelle.toLowerCase()}</strong> est signé{p.signe_le ? ` le ${instantFr(p.signe_le)}` : ""}.</p>
+        <p className="mt-2 text-encre-2">Votre formulaire « <strong>{p.libelle}</strong> » est signé{p.signe_le ? ` le ${instantFr(p.signe_le)}` : ""}.</p>
         <p className="mt-1 text-sm text-encre-2">Le document signé a rejoint votre dossier de formation « {p.formation_titre} »{p.formateur ? ` ; ${p.formateur} en a été prévenu` : ""}. Une copie vous a aussi été envoyée par e-mail{p.apprenant.email ? ` à ${p.apprenant.email}` : ""}.</p>
         {p.pdf ? (
           <a href={`/api/public/formulaire/${jeton}/pdf`} className="mt-6 inline-flex h-11 items-center justify-center gap-2 rounded-sm bg-accent px-5 text-sm font-medium text-sur-accent shadow-carte hover:bg-accent-fort">

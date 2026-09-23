@@ -10,7 +10,7 @@
  * (`modifierFormation`, `enregistrerOutil`), qui appliquent leurs propres contrôles. Seule exception : la production
  * d'un support PPTX, qui ÉCRIT dans le coffre-fort un document que le formateur a validé (ou demandé).
  *
- * La configuration de l'IA vient des réglages de l'organisme (Organisme → IA), à défaut du `.env` du serveur.
+ * La configuration de l'IA vient des réglages de l'organisme (Organisme → Assistant IA), à défaut du `.env` du serveur.
  * Chaque appel est journalisé avec son usage (tokens, recherches, durée) : le coût reste visible.
  * C'est le SEUL service qui a le droit d'appeler le port IA (test de garde `ia-perimetre.test.ts`).
  */

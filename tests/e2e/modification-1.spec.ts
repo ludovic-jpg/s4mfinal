@@ -33,34 +33,58 @@ test("compte pilote : menu à trois espaces, coffre-fort, positionnements, profi
   await expect(page.getByRole("tab", { name: /Justificatifs/ })).toBeVisible();
 });
 
-test("compte pilote : génère un parcours en 3 modules avec seulement titre, heures, jours, tarif et nombre de modules", async ({ page }) => {
+test("compte pilote : génère un parcours en 3 modules (IA factice) avec seulement titre, heures, jours, tarif et nombre de modules", async ({ page }) => {
   await connecterPilote(page);
   await page.goto("/formations");
   await page.getByRole("button", { name: "Nouvelle formation" }).first().click();
-  const modale = page.locator("dialog");
+  const modale = page.locator("dialog[open]");
   await modale.getByLabel("Intitulé de la formation").fill("Améliorer ma prospection");
   await modale.getByLabel("Niveau").selectOption("Débutant");
   await modale.getByLabel("Durée (heures)").fill("14");
   await modale.getByLabel("Durée (jours)").fill("2");
   await modale.getByLabel("Nombre de modules").selectOption("3");
   await modale.getByLabel("Tarif HT par stagiaire (€)").fill("1400");
+  // Version 7 : plus de trame sans IA — ici l'assistant factice (réponses marquées « [démonstration] »).
+  await expect(modale.getByText("assistant factice")).toBeVisible();
   await modale.getByRole("button", { name: "Générer le parcours" }).click();
-  await expect(modale.getByText("Trame de parcours générée")).toBeVisible();
+  await expect(modale.getByText("Parcours proposé par l'assistant IA")).toBeVisible();
   await expect(modale.locator("details")).toHaveCount(3);
+  await expect(modale.locator("details summary").first()).toContainText("[démonstration] Module 1");
   await expect(modale.getByText("Somme des modules : 14 h")).toBeVisible();
+  // Le dossier d'enjeux est arrivé avec le parcours : onglet « 2. Enjeux » rempli, à enregistrer avec la formation.
+  await modale.getByRole("tab", { name: /2\. Enjeux/ }).click();
+  await expect(modale.getByRole("heading", { name: /Dossier d'enjeux/ })).toBeVisible();
+  await expect(modale.getByText("Nouveau — à enregistrer")).toBeVisible();
+  await expect(modale.getByText(/\[démonstration\] Dossier d'enjeux fictif/)).toBeVisible();
+  await expect(modale.getByText("Le nouveau dossier d'enjeux sera enregistré avec la formation.")).toBeVisible();
   await modale.getByRole("button", { name: "Enregistrer", exact: true }).click();
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Améliorer ma prospection");
   await expect(page.getByText("Parcours enregistré")).toBeVisible();
+  await expect(page.getByText(/3 module\(s\) enregistré\(s\)/)).toBeVisible();
+  await expect(page.getByText(/Constitué le .* 1 source\(s\) consultée\(s\)/)).toBeVisible();
+  // Le dossier d'enjeux enregistré se relit dans l'onglet « 2. Enjeux » de la fiche.
+  await page.getByRole("tab", { name: /2\. Enjeux/ }).click();
+  await expect(page.getByText(/Constitué le/).first()).toBeVisible();
+  await expect(page.getByRole("link", { name: "[démonstration] Source fictive" })).toBeVisible();
 
-  // Même fonctionnalité pour le test de positionnement : brouillon, aménagement, enregistrement.
+  // Même fonctionnalité pour le test de positionnement : brouillon rédigé par l'IA, aménagement, enregistrement.
   await page.getByRole("button", { name: "Générer le test de positionnement" }).click();
-  await page.locator("dialog").getByRole("button", { name: "Générer le brouillon" }).click();
-  await expect(page.locator("dialog").getByText("Brouillon généré")).toBeVisible();
-  await page.locator("dialog").getByRole("button", { name: "Enregistrer le modèle" }).click();
-  await expect(page.getByText("Test de positionnement").first()).toBeVisible();
+  const test = page.locator("dialog[open]");
+  await test.getByRole("button", { name: "Générer le brouillon" }).click();
+  await expect(test.getByText("Brouillon généré")).toBeVisible();
+  await expect(test.getByLabel("Titre")).toHaveValue(/\[démonstration\] Test de positionnement/);
+  await expect(test.getByLabel("Énoncé de la question 10")).toHaveValue(/\[démonstration\] Question 10/);
+  await test.getByRole("button", { name: "Enregistrer le modèle" }).click();
+  await expect(page.locator("dialog[open]")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Regénérer le test de positionnement" })).toBeVisible();
+  await expect(page.getByText("Questionnaires rattachés").locator("..").getByText(/\[démonstration\] Test de positionnement/)).toBeVisible();
+  // Le test enregistré débloque l'invitation au positionnement (scénario suivant).
+  await expect(page.getByRole("button", { name: "Inviter un apprenant à se positionner" })).toBeEnabled();
 });
 
 test("compte pilote : crée un apprenant ET son entreprise, l'invite à se positionner ; l'apprenant signe ; le PDF est disponible", async ({ page, context }) => {
+  // Suppose le scénario précédent : le parcours « Améliorer ma prospection » a son test de positionnement enregistré
+  // (sans lui, l'invitation est refusée).
   await connecterPilote(page);
   await page.goto("/repertoire");
   await page.getByRole("button", { name: "Nouvelle fiche apprenant" }).click();
@@ -85,6 +109,7 @@ test("compte pilote : crée un apprenant ET son entreprise, l'invite à se posit
   const apprenant = await context.browser()!.newPage();
   await apprenant.goto(lien.replace(/^https?:\/\/[^/]+/, ""));
   await expect(apprenant.getByRole("heading", { name: "Mon positionnement" })).toBeVisible();
+  await expect(apprenant.getByText(/\[démonstration\] Question 1 sur/)).toBeVisible(); // le QCM généré par l'IA factice
   await expect(apprenant.getByLabel("Adresse e-mail")).toHaveValue("julie.test@apprenant.example");
   const reponses: Record<string, string> = { "Quel poste occupez-vous": "Commerciale depuis 2 ans", "Quelles sont vos attentes": "Trouver des clients", "De quoi pensez-vous avoir le plus besoin": "Méthode" };
   for (const [debut, texte] of Object.entries(reponses)) await apprenant.getByRole("textbox", { name: new RegExp(debut) }).fill(texte);
@@ -111,7 +136,7 @@ test("compte pilote : crée un apprenant ET son entreprise, l'invite à se posit
   await expect(page.getByRole("link", { name: "PDF signé" })).toBeVisible();
 });
 
-test("formatrice de démonstration : le coffre-fort du parcours généré contient ses 4 supports PPTX et son programme", async ({ page }) => {
+test("formatrice de démonstration : le coffre-fort du parcours généré contient ses 4 supports PPTX, son programme et son test", async ({ page }) => {
   await page.goto("/connexion");
   await page.getByLabel("Adresse e-mail").fill("formatrice@demo.example");
   await page.getByLabel("Mot de passe").fill("demonstration-s4m");
@@ -119,7 +144,14 @@ test("formatrice de démonstration : le coffre-fort du parcours généré contie
   await page.waitForURL("/");
   await page.goto("/coffres");
   await page.getByRole("link", { name: /Prospection commerciale B2B/ }).click();
+  // Semence : 4 modules → 4 supports générés, programme PDF, test de positionnement rattaché, règlement intérieur déposé.
   await expect(page.getByText(/Support — Module \d/)).toHaveCount(4);
-  await expect(page.getByRole("link", { name: "PDF" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "PDF", exact: true })).toBeVisible();
+  await expect(page.getByText("Positionnement — prospection B2B")).toBeVisible();
   await expect(page.getByRole("link", { name: /Tout télécharger/ })).toBeVisible();
+  // Administratif : le règlement intérieur déposé, un positionnement signé (Léa) et un en attente (Luc).
+  await page.getByRole("tab", { name: /Administratif/ }).click();
+  await expect(page.getByText("Règlement intérieur.pdf")).toBeVisible();
+  await expect(page.getByRole("link", { name: "PDF signé" })).toBeVisible();
+  await expect(page.getByText("Envoyé", { exact: true })).toBeVisible();
 });

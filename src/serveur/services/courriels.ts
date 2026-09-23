@@ -138,7 +138,7 @@ export const courriels = {
   }),
 
   formulaireConfirmation: (a: { of_nom: string; prenom: string; formation: string; libelle: string; lien: string }): Courriel => ({
-    sujet: `Votre ${a.libelle.toLowerCase()} est enregistré — ${a.formation}`,
+    sujet: `Votre formulaire « ${a.libelle} » est signé — ${a.formation}`,
     corps_html: habiller(a.of_nom, `Bonjour ${a.prenom},`, [
       `Merci : votre formulaire « <strong>${e(a.libelle)}</strong> » pour <strong>${e(a.formation)}</strong> est complet et signé. Le document signé est joint à ce message.`,
       "Il a rejoint automatiquement votre dossier de formation.",

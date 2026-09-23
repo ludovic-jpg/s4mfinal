@@ -8,6 +8,7 @@
  */
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
+import { echapperHtml as e } from "@/domaine/gabarits/moteur";
 import { reglage } from "../bd/schema";
 import { nouvelId } from "../ports/divers";
 import { exigerRole, journaliser, type Acteur, type Services } from "./socle";
@@ -163,7 +164,7 @@ export async function envoyerCourrielDeTest(s: Services, acteur: Acteur) {
     type: "test_smtp",
     destinataire: acteur.email,
     sujet: "Test d'envoi — plateforme de formation",
-    corps_html: `<p>Bonjour ${acteur.nom},</p><p>Si vous lisez ce message, l'envoi des e-mails depuis votre plateforme fonctionne.</p><p>Envoyé le ${new Intl.DateTimeFormat("fr-FR", { dateStyle: "long", timeStyle: "short", timeZone: "Europe/Paris" }).format(s.horloge.maintenant())}.</p>`,
+    corps_html: `<p>Bonjour ${e(acteur.nom)},</p><p>Si vous lisez ce message, l'envoi des e-mails depuis votre plateforme fonctionne.</p><p>Envoyé le ${new Intl.DateTimeFormat("fr-FR", { dateStyle: "long", timeStyle: "short", timeZone: "Europe/Paris" }).format(s.horloge.maintenant())}.</p>`,
   });
   const [ligne] = await s.bd.select().from(reglage).where(and(eq(reglage.of_id, acteur.of_id), eq(reglage.cle, "courrier_actif")));
   return { ...r, actif: ligne?.valeur === "oui", destinataire: acteur.email };

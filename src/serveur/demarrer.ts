@@ -94,7 +94,7 @@ const minuterie = setInterval(tacheQuotidienne, 24 * 3600 * 1000);
 const serveur = serve({ fetch: app.fetch, port: config.PORT }, (info) => {
   console.log(`[s4m] ${interfaceCompilee ? "application" : "API"} prête sur http://localhost:${info.port}${interfaceCompilee ? "" : " — interface : npm run dev:web"}`);
   console.log(`[s4m] base : ${config.DATABASE_URL} · archive : ${config.ARCHIVE_DIR}`);
-  console.log(`[s4m] courrier : ${expeditionEnv ? "SMTP (.env)" : "boîte locale, sauf réglages SMTP enregistrés dans l'application"} · PDF : ${pdf.disponible ? "Chromium trouvé" : "indisponible — pièces archivées en HTML"} · IA (.env) : ${s.ia?.disponible ? `activée (${s.ia.description})` : "non configurée — réglable dans Organisme → IA"}`);
+  console.log(`[s4m] courrier : ${expeditionEnv ? "SMTP (.env)" : "boîte locale, sauf réglages SMTP enregistrés dans l'application"} · PDF : ${pdf.disponible ? "Chromium trouvé" : "indisponible — pièces archivées en HTML"} · IA (.env) : ${s.ia?.disponible ? `activée (${s.ia.description})` : "non configurée — réglable dans Organisme → Assistant IA"}`);
 });
 
 const arreter = async () => {

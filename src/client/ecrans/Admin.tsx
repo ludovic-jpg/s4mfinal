@@ -282,7 +282,7 @@ function Interrupteur({ libelle, aide, actif, changer }: { libelle: string; aide
 /** Champ secret : jamais réaffiché ; vide = inchangé ; bouton pour l'effacer. */
 function ChampSecret({ libelle, defini, valeur, changer, aide, erreur, autoComplete = "off", libelleEffacer }: { libelle: string; defini: boolean; valeur: string; changer: (v: string) => void; aide?: string; erreur?: string; autoComplete?: string; libelleEffacer: string }) {
   const effacement = valeur === EFFACER;
-  const etat = effacement ? <Etiquette ton="danger">Sera effacé à l'enregistrement</Etiquette> : defini ? <Etiquette ton="accent">Définie ✓</Etiquette> : <Etiquette ton="attente">Aucune</Etiquette>;
+  const etat = effacement ? <Etiquette ton="danger">Sera effacé à l'enregistrement</Etiquette> : defini ? <Etiquette ton="accent">En place ✓</Etiquette> : <Etiquette ton="attente">À renseigner</Etiquette>;
   if (effacement) {
     return (
       <div className="min-w-0">
@@ -321,7 +321,7 @@ function OngletAssistantIa() {
     <form onSubmit={(e) => { e.preventDefault(); enregistrer.mutate(); }}>
       <div className="space-y-6">
         <Carte className="p-5">
-          <Interrupteur libelle="Activer l'assistant IA" aide="Génère les propositions de parcours, les supports de module, les tests et les dossiers d'enjeux. Désactivé, ces boutons disparaissent de l'interface." actif={active} changer={(x) => poser({ ia_active: x ? "oui" : "non" })} />
+          <Interrupteur libelle="Activer l'assistant IA" aide="Rédige les dossiers d'enjeux, les parcours, les tests de connaissances et les supports de cours des formateurs. Désactivé, ces boutons sont grisés et une note leur indique où l'activer." actif={active} changer={(x) => poser({ ia_active: x ? "oui" : "non" })} />
         </Carte>
 
         <Carte className={cx("space-y-5 p-5 transition-opacity", !active && "opacity-60")}>

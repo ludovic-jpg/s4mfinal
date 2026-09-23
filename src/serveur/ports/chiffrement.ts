@@ -33,12 +33,18 @@ export class ChiffreurAesGcm implements Chiffreur {
     if (!scelle) return "";
     if (!scelle.startsWith(PREFIXE)) throw new Error("Secret illisible : format inconnu.");
     const brut = Buffer.from(scelle.slice(PREFIXE.length), "base64");
+    if (brut.length < 28) throw new Error("Secret illisible : données tronquées.");
     const iv = brut.subarray(0, 12);
     const tag = brut.subarray(12, 28);
     const donnees = brut.subarray(28);
-    const dechiffre = createDecipheriv("aes-256-gcm", this.cle, iv);
-    dechiffre.setAuthTag(tag);
-    return Buffer.concat([dechiffre.update(donnees), dechiffre.final()]).toString("utf8");
+    try {
+      const dechiffre = createDecipheriv("aes-256-gcm", this.cle, iv);
+      dechiffre.setAuthTag(tag);
+      return Buffer.concat([dechiffre.update(donnees), dechiffre.final()]).toString("utf8");
+    } catch {
+      // Clé de chiffrement différente de celle qui a scellé le secret (CLE_SECRETS changée, fichier .cle-secrets perdu).
+      throw new Error("Secret illisible : la clé de chiffrement a changé, il faut le ressaisir.");
+    }
   }
 }
 

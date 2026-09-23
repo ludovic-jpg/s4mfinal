@@ -329,7 +329,9 @@ export async function reprendrePositionnements(s: Services, acteur: Acteur, d: L
     if (!p) continue;
     try {
       const recueil = Object.fromEntries(Object.entries((p.recueil ?? {}) as Record<string, string>).filter(([k]) => !k.startsWith("supp_")));
-      const par = { utilisateur_id: st.utilisateur_id, acteur, validerPiece: true };
+      // La pièce est validée AU NOM DE L'APPRENANT (c'est lui qui a signé), pas du formateur qui crée le dossier.
+      const signataire: Acteur = { utilisateur_id: st.utilisateur_id ?? "", of_id: d.of_id, role: "apprenant", formateur_id: null, formateur_valide: false, stagiaire_id: st.id, nom: `${st.stagiaire_prenom} ${st.stagiaire_nom}`, email: st.stagiaire_email };
+      const par = { utilisateur_id: st.utilisateur_id, acteur: signataire, validerPiece: true };
       await enregistrerReponses(s, d, st.id, "recueil", { reponses: recueil }, par);
       if (p.questionnaire && JSON.stringify(p.questionnaire) === JSON.stringify(d.questionnaire_positionnement)) {
         await enregistrerReponses(s, d, st.id, "positionnement", { reponses: p.reponses, ajustement: `Repris du positionnement signé le ${dateIso(p.signe_le!)}.` }, par);

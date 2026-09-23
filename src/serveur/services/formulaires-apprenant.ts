@@ -235,7 +235,8 @@ async function parJeton(s: Services, jeton: string): Promise<{ f: Ligne; d: Lign
     .from(formulaireApprenant)
     .innerJoin(stagiaire, eq(stagiaire.id, formulaireApprenant.stagiaire_id))
     .where(eq(formulaireApprenant.jeton_hash, sha256(jeton)));
-  if (!ligne) throw introuvable("Lien de formulaire");
+  // Un renvoi remplace le jeton : l'ancien lien (e-mail précédent) tombe ici.
+  if (!ligne) throw new ErreurMetier("introuvable", "Ce lien n'est plus valable. Si vous avez reçu plusieurs e-mails, ouvrez le plus récent ; sinon, demandez à votre formateur de vous renvoyer le formulaire.");
   if (ligne.f.statut !== "complet" && ligne.f.expire_le <= s.horloge.maintenant()) throw new ErreurMetier("introuvable", "Ce lien a expiré. Demandez à votre formateur de vous renvoyer le formulaire.");
   const d = await dossierSysteme(s, ligne.f.dossier_id);
   return { f: ligne.f, d, st: ligne.st };

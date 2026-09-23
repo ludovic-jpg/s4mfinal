@@ -7,7 +7,7 @@
  * Seul le service `pedagogie-ia` utilise ce port — un test de garde le vérifie.
  *
  * Version 7 (23/09/2026) : plus aucune « trame » sans IA. Sans IA configurée, les générateurs pédagogiques
- * expliquent comment l'activer (écran Organisme → IA) ; le reste de l'application fonctionne normalement.
+ * expliquent comment l'activer (écran Organisme → Assistant IA) ; le reste de l'application fonctionne normalement.
  * Aucune donnée d'apprenant n'est jamais envoyée : uniquement la description de la FORMATION.
  */
 
@@ -121,13 +121,13 @@ export class IaAnthropic implements AssistantPedagogique {
       }
       if (reponse.ok) return { corps: (await reponse.json()) as CorpsReponse, tentatives: tentative };
       const detail = ((await reponse.json().catch(() => null)) as CorpsReponse | null)?.error;
-      if (reponse.status === 401) throw new Error("Clé d'API IA refusée : vérifiez la clé dans Organisme → IA.");
+      if (reponse.status === 401) throw new Error("Clé d'API IA refusée : vérifiez la clé dans Organisme → Assistant IA.");
       if (reponse.status === 403) throw new Error("Accès refusé par l'API IA : vérifiez le workspace ou les droits de la clé.");
       if (reponse.status === 400) {
         // Erreur de requête : la reformuler ne changera rien ; on donne le type d'erreur, jamais le message brut.
         const type = detail?.type ?? "invalid_request";
-        if (/workspace/i.test(detail?.message ?? "")) throw new Error("Cette clé n'est pas rattachée à un workspace : renseignez l'identifiant du workspace dans Organisme → IA.");
-        if (/model/i.test(detail?.message ?? "")) throw new Error(`Modèle IA inconnu (« ${this.config.modele} ») : choisissez-en un autre dans Organisme → IA.`);
+        if (/workspace/i.test(detail?.message ?? "")) throw new Error("Cette clé n'est pas rattachée à un workspace : renseignez l'identifiant du workspace dans Organisme → Assistant IA.");
+        if (/model/i.test(detail?.message ?? "")) throw new Error(`Modèle IA inconnu (« ${this.config.modele} ») : choisissez-en un autre dans Organisme → Assistant IA.`);
         throw new Error(`Requête refusée par l'assistant IA (${type}).`);
       }
       if (reponse.status === 429 || reponse.status >= 500) {
@@ -160,6 +160,7 @@ export class IaAnthropic implements AssistantPedagogique {
     const blocs: Bloc[] = [];
 
     // Une réponse longue (recherche web en plusieurs tours) peut être mise en pause : on la reprend telle quelle.
+    let arret: string | undefined;
     for (let tour = 0; tour < 6; tour++) {
       const { corps, tentatives } = await this.appeler({ ...base, messages });
       usage.tentatives += tentatives;
@@ -167,6 +168,7 @@ export class IaAnthropic implements AssistantPedagogique {
       usage.tokens_sortie += corps.usage?.output_tokens ?? 0;
       usage.recherches_web += corps.usage?.server_tool_use?.web_search_requests ?? 0;
       blocs.push(...(corps.content ?? []));
+      arret = corps.stop_reason;
       if (corps.stop_reason === "pause_turn") {
         messages.push({ role: "assistant", content: corps.content ?? [] });
         continue;
@@ -177,6 +179,8 @@ export class IaAnthropic implements AssistantPedagogique {
 
     const texte = blocs.filter((b): b is Extract<Bloc, { type: "text" }> => b.type === "text").map((b) => String(b.text ?? "")).join("");
     if (!texte.trim()) throw new Error("L'assistant IA a renvoyé une réponse vide.");
+    // Réponse coupée : le JSON serait incomplet ; mieux vaut le dire que « proposition inexploitable ».
+    if (arret === "max_tokens") throw new Error("La réponse de l'assistant IA a été coupée (trop longue). Réessayez, ou demandez moins de questions ou de modules.");
     const sources = new Map<string, string>();
     for (const b of blocs) {
       if (b.type === "text") for (const c of (b as Extract<Bloc, { type: "text" }>).citations ?? []) if (c.url && !sources.has(c.url)) sources.set(c.url, c.title ?? c.url);
@@ -208,7 +212,8 @@ export class IaFactice implements AssistantPedagogique {
     const titre = /Intitulé : (.+)/.exec(demande)?.[1]?.trim() ?? "la formation";
     const usage: UsageIa = { tokens_entree: 0, tokens_sortie: 0, recherches_web: 0, modele: "factice", duree_ms: 0, tentatives: 1 };
     const json = (o: unknown) => ({ texte: JSON.stringify(o), usage, sources: [] });
-    if (/dossier d'enjeux/i.test(demande)) {
+    // Seule la consigne d'analyse COMMENCE ainsi ; les autres (parcours, tests, diaporamas) citent aussi « dossier d'enjeux ».
+    if (/^Constitue le dossier d'enjeux/i.test(demande)) {
       return json({
         resume: `[démonstration] Dossier d'enjeux fictif pour « ${titre} » : ce texte remplace la recherche web de l'assistant réel. Il sert à essayer l'application sans clé d'API.`,
         enjeux: ["[démonstration] Enjeu n° 1 pour l'entreprise", "[démonstration] Enjeu n° 2 pour le stagiaire", "[démonstration] Enjeu n° 3 réglementaire"],
