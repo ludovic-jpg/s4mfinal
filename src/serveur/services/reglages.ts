@@ -13,7 +13,6 @@ import { nouvelId } from "../ports/divers";
 import { exigerRole, journaliser, type Acteur, type Services } from "./socle";
 
 export const CLES_SECRETES = ["ia_cle", "smtp_mot_de_passe"] as const;
-type CleSecrete = (typeof CLES_SECRETES)[number];
 
 export const SchemaReglages = z
   .object({

@@ -3,7 +3,7 @@ import { creerBanc, fichier, MDP, type Banc } from "../banc";
 import { connecter, inscrireFormateur } from "@/serveur/services/auth";
 import { exporterBpfCsv, lireBpf } from "@/serveur/services/bpf";
 import { creerDossier, definirSeances, lireDossier, listerDossiers, modifierDossier } from "@/serveur/services/dossiers";
-import { enregistrerEvaluation } from "@/serveur/services/evaluations";
+import { signerFormulairePublic } from "@/serveur/services/formulaires-apprenant";
 import { creerFormation, enregistrerOutil } from "@/serveur/services/formations";
 import { executerAction } from "@/serveur/services/pipeline";
 import { enregistrerEntreprise, enregistrerStagiaire } from "@/serveur/services/repertoire";
@@ -14,6 +14,7 @@ import type { Acteur } from "@/serveur/services/socle";
 
 const QCM = { titre: "QCM", questions: [{ enonce: "Q ?", propositions: ["a", "b"], bonne_reponse: 0 }] };
 const RECUEIL = { poste_anciennete: "x", niveau_maitrise: "Avancé", attentes: "x", besoins_principaux: "x", handicap: "Non", programme_transmis: "Oui" };
+const SIGNATURE = { trace_png: `data:image/png;base64,${"iVBORw0KGgo".repeat(80)}`, lieu: "Mulhouse", consentement: true, date: "2026-10-01" };
 
 let b: Banc;
 let sophie: Acteur;
@@ -29,8 +30,11 @@ async function dossierRealise(formateur: Acteur, fin: string): Promise<string> {
   const d = await creerDossier(b.s, formateur, { stagiaire_ids: [st.id], entreprise_id: ent.id, formation_id: f.id, formation_modalite: "presentiel", mode_financement: "entreprise" });
   await modifierDossier(b.s, formateur, d.id, { formation_date_debut: fin, formation_date_fin: fin, signature_lieu: "Mulhouse" });
   await definirSeances(b.s, formateur, d.id, [{ date: fin, heure_debut: "09:00", heure_fin: "16:00" }]);
-  await enregistrerEvaluation(b.s, formateur, d.id, "recueil", { reponses: RECUEIL, stagiaire_id: st.id });
-  await enregistrerEvaluation(b.s, formateur, d.id, "positionnement", { reponses: [0], stagiaire_id: st.id });
+  // Version 7 : l'apprenant répond et signe lui-même, depuis la page interactive reçue à la création du dossier.
+  for (const type of ["recueil", "positionnement"] as const) {
+    const mail = (await b.courriers()).find((c) => c.dossier_id === d.id && c.type === `formulaire_${type}`)!;
+    await signerFormulairePublic(b.s, /\/formulaire\/([\w-]+)/.exec(mail.corps_html)![1]!, { reponses: type === "recueil" ? RECUEIL : [0], ...SIGNATURE });
+  }
   await executerAction(b.s, formateur, d.id, "soumettre_validation");
   await executerAction(b.s, b.admin, d.id, "valider_dossier");
   await deposerPieceExterne(b.s, b.admin, d.id, "ACC", fichier("accord.pdf")); // RG-06 : ici c'est l'OF qui dépose
@@ -69,9 +73,14 @@ describe("J11 — page BPF (F-BPF-01/02)", () => {
 });
 
 describe("tâche de fond — satisfaction à froid à J+90", () => {
-  it("n'écrit à l'apprenant qu'une fois le délai écoulé, et une seule fois", async () => {
+  it("n'écrit à l'apprenant qu'une fois le dossier complet et le délai écoulé (version 7 : formulaire en page interactive)", async () => {
     await executerAction(b.s, "systeme", realise, "reevaluer_completude");
     expect(await envoyerSatisfactionsAFroid(b.s)).toBe(0); // dossier incomplet : pas encore concerné
+    const types = (await b.courriers()).filter((c) => c.dossier_id === realise).map((c) => c.type);
+    expect(types).toContain("formulaire_satisfaction_chaud"); // envoyé à « formation terminée »
+    expect(types).not.toContain("formulaire_acquis"); // cette formation n'a pas d'évaluation des acquis : rien à envoyer (tracé au journal)
+    expect((await lireDossier(b.s, b.admin, realise)).journal.some((e) => e.type === "formulaire_non_envoye" && e.libelle.includes("Évaluation des acquis"))).toBe(true);
+    expect(types).not.toContain("formulaire_satisfaction_froid");
   });
 });
 

@@ -8,6 +8,7 @@ import { creerBanc, fichier, MDP, type Banc } from "../banc";
 import { accepterInvitation, acteurDepuisJeton } from "@/serveur/services/auth";
 import { creerDossier, definirSeances, inviter, lireDossier, listerDossiers, modifierDossier, recreerDepuis, relancerApprenant, supprimerBrouillon } from "@/serveur/services/dossiers";
 import { enregistrerEvaluation, lireQuestionnaire } from "@/serveur/services/evaluations";
+import { lireFormulairePublic, signerFormulairePublic } from "@/serveur/services/formulaires-apprenant";
 import { coffresDeLApprenant, creerFormation, deposerDansCoffre, dupliquerFormation, enregistrerOutil, listerOutils, telechargerDuCoffre } from "@/serveur/services/formations";
 import { executerAction } from "@/serveur/services/pipeline";
 import { enregistrerEntreprise, enregistrerStagiaire } from "@/serveur/services/repertoire";
@@ -39,6 +40,12 @@ const piece = async (acteur: Acteur, code: string, stagiaire_id: string | null =
   return p;
 };
 const statut = async () => (await lireDossier(b.s, b.admin, dossierId)).sous_statut;
+/** Le jeton du dernier formulaire de ce type envoyé à cette adresse (lien personnel dans l'e-mail). */
+const jetonFormulaire = async (type: string, destinataire: string) => {
+  const mail = (await b.courriers()).filter((c) => c.type === `formulaire_${type}` && c.destinataire === destinataire).at(-1);
+  if (!mail) throw new Error(`Aucun e-mail formulaire_${type} pour ${destinataire}`);
+  return /\/formulaire\/([\w-]+)/.exec(mail.corps_html)![1]!;
+};
 
 beforeAll(async () => {
   b = await creerBanc();
@@ -87,6 +94,14 @@ describe("Modules 4 et 5 — fiches, création du dossier", () => {
     expect(d.dossier_reference).toBe("ADF-2026-0001");
     expect(d).toMatchObject({ sous_statut: "brouillon", formation_titre: "Excel — tableaux croisés dynamiques", formation_duree_heures_total: 14, formation_lieu_nom: "Menuiserie Dupont SARL", formation_prix_unitaire_ht: 98_000 });
     expect(d.questionnaire_positionnement).toMatchObject({ titre: "Positionnement Excel" });
+    // Version 7 : recueil et positionnement partent aussitôt à chaque apprenant, en page interactive (lien + PDF QR code).
+    const formulaires = (await b.courriers()).filter((c) => c.dossier_id === d.id && c.type.startsWith("formulaire_"));
+    expect(formulaires.map((c) => [c.type, c.destinataire]).sort()).toEqual([
+      ["formulaire_positionnement", "anne.martin@dupont.example"],
+      ["formulaire_positionnement", "luc.petit@dupont.example"],
+      ["formulaire_recueil", "anne.martin@dupont.example"],
+      ["formulaire_recueil", "luc.petit@dupont.example"],
+    ]);
   });
 
   it("RG-02 / F-DOS-04 : refuse la demande de validation sans recueil ni positionnement", async () => {
@@ -102,16 +117,24 @@ describe("Modules 4 et 5 — fiches, création du dossier", () => {
     expect((await listerDossiers(b.s, anne)).dossiers.map((x) => x.dossier_reference)).toEqual(["ADF-2026-0001"]);
   });
 
-  it("recueil et positionnement : l'apprenant en ligne (sans jamais voir le corrigé), ou le formateur à sa place", async () => {
+  it("recueil et positionnement : l'apprenant en ligne (sans jamais voir le corrigé) ; le formateur ne saisit JAMAIS à sa place", async () => {
     const q = await lireQuestionnaire(b.s, anne, dossierId, "positionnement");
     expect(JSON.stringify(q.questionnaire)).not.toContain("bonne_reponse");
     expect(await enregistrerEvaluation(b.s, anne, dossierId, "positionnement", { reponses: [0, 0] })).toEqual({ score: 50 });
     await expect(enregistrerEvaluation(b.s, anne, dossierId, "recueil", { reponses: { attentes: "Gagner du temps" } })).rejects.toMatchObject({ code: "invalide" });
     const recueil = { poste_anciennete: "Assistante, 4 ans", niveau_maitrise: "Notions de base", attentes: "Gagner du temps", besoins_principaux: "Les TCD", handicap: "Non", programme_transmis: "Oui" };
     await enregistrerEvaluation(b.s, anne, dossierId, "recueil", { reponses: recueil });
-    // Pour Luc, le formateur saisit lui-même l'entretien.
-    await enregistrerEvaluation(b.s, sophie, dossierId, "recueil", { reponses: recueil, stagiaire_id: ids.luc });
-    await enregistrerEvaluation(b.s, sophie, dossierId, "positionnement", { reponses: [0, 1], stagiaire_id: ids.luc, ajustement: "Renforcer le contrôle des données." });
+    // Version 7 : le formateur ne répond plus à la place de Luc — il lui envoie son formulaire.
+    await expect(enregistrerEvaluation(b.s, sophie, dossierId, "recueil", { reponses: recueil, stagiaire_id: ids.luc })).rejects.toMatchObject({ code: "interdit", message: expect.stringContaining("Envoyer") });
+    await expect(enregistrerEvaluation(b.s, b.admin, dossierId, "positionnement", { reponses: [0, 1], stagiaire_id: ids.luc })).rejects.toMatchObject({ code: "interdit" });
+    // Luc répond et signe depuis la page interactive de ses formulaires (lien personnel reçu à la création du dossier).
+    const jetonRecueil = await jetonFormulaire("recueil", "luc.petit@dupont.example");
+    expect(await lireFormulairePublic(b.s, jetonRecueil)).toMatchObject({ type: "recueil", apprenant: { prenom: "Luc", nom: "Petit" }, formation_titre: "Excel — tableaux croisés dynamiques" });
+    await signerFormulairePublic(b.s, jetonRecueil, { reponses: recueil, date: "2026-10-01", ...SIGNATURE });
+    const jetonTest = await jetonFormulaire("positionnement", "luc.petit@dupont.example");
+    expect(JSON.stringify((await lireFormulairePublic(b.s, jetonTest)).questionnaire)).not.toContain("bonne_reponse");
+    await signerFormulairePublic(b.s, jetonTest, { reponses: [0, 1], date: "2026-10-01", ...SIGNATURE });
+    expect((await piece(sophie, "01-AVT", ids.luc))).toMatchObject({ statut: "valide", mode_retour: "signature" });
     // Une pièce validée fait foi : ses réponses ne se réécrivent plus.
     await expect(enregistrerEvaluation(b.s, anne, dossierId, "positionnement", { reponses: [0, 1] })).rejects.toMatchObject({ code: "conflit" });
   });
@@ -153,7 +176,8 @@ describe("Étapes A et B — validation, financement", () => {
     expect(await statut()).toBe("dossier_valide");
 
     const depart = b.archive.lister("ADF-2026-0001/Pièces de départ/");
-    expect(depart.map((c) => c.split("/").pop())).toEqual([
+    expect(depart.filter((c) => c.includes("/Invitation ")).length).toBe(4); // version 7 : invitations aux formulaires (QR code)
+    expect(depart.filter((c) => !c.includes("/Invitation ")).map((c) => c.split("/").pop())).toEqual([
       "00_AVT_Recueil-Besoins_Anne-Martin.html",
       "00_AVT_Recueil-Besoins_Luc-Petit.html",
       "00b_AVT_Pre-Dossier_Anne-Martin.html",
@@ -366,8 +390,8 @@ describe("RG-07 — refus de financement", () => {
     expect(d2.dossier_reference).toBe("ADF-2026-0002");
     expect(d2).toMatchObject({ formation_lieu_adresse: "", formation_duree_heures_distanciel: 14 });
     const recueil = { poste_anciennete: "x", niveau_maitrise: "Avancé", attentes: "x", besoins_principaux: "x", handicap: "Non", programme_transmis: "Oui" };
-    await enregistrerEvaluation(b.s, sophie, d2.id, "recueil", { reponses: recueil, stagiaire_id: ids.anne });
-    await enregistrerEvaluation(b.s, sophie, d2.id, "positionnement", { reponses: [0, 1], stagiaire_id: ids.anne });
+    await enregistrerEvaluation(b.s, anne, d2.id, "recueil", { reponses: recueil });
+    await enregistrerEvaluation(b.s, anne, d2.id, "positionnement", { reponses: [0, 1] });
     await modifierDossier(b.s, sophie, d2.id, { formation_date_debut: "2026-12-01", formation_date_fin: "2026-12-02", signature_lieu: "Mulhouse", formation_lien_visio: "https://visio.example/salle" });
     await definirSeances(b.s, sophie, d2.id, [{ date: "2026-12-01", heure_debut: "09:00", heure_fin: "17:00" }]);
     await executerAction(b.s, sophie, d2.id, "soumettre_validation");

@@ -1,12 +1,13 @@
 /**
- * Recette automatisée du document « Modification 1 » (23/09/2026), point par point.
- * Vraie base PostgreSQL en mémoire, archive en mémoire, horloge fixe, IA factice (aucun réseau).
+ * Recette automatisée du document « Modification 1 » (23/09/2026), point par point — mise à jour version 7 :
+ * plus aucune « trame » sans IA, tout est rédigé par l'assistant (ici factice : réponses écrites d'avance, aucun réseau).
+ * Vraie base PostgreSQL en mémoire, archive en mémoire, horloge fixe.
  */
 import JSZip from "jszip";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { creerBanc, fichier, iaFactice, MDP, type Banc } from "../banc";
 import { validerQuestionnaire } from "@/domaine/formulaires/qcm";
-import { genererTrameParcours, repartirHeures, trameDiapos, trameTestPositionnement } from "@/domaine/pedagogie/parcours";
+import { repartirHeures, validerModules, type Diapo, type ModuleParcours, type TypeDiapo } from "@/domaine/pedagogie/parcours";
 import { assurerComptePilote } from "@/serveur/bd/amorce";
 import { tracePngDemo } from "@/serveur/bd/trace-demo";
 import { connecter } from "@/serveur/services/auth";
@@ -47,8 +48,38 @@ import type { Acteur } from "@/serveur/services/socle";
 
 const RECUEIL = { poste_anciennete: "Commercial, 3 ans", niveau_maitrise: "Intermédiaire", attentes: "Structurer ma prospection", besoins_principaux: "Le ciblage", handicap: "Non", programme_transmis: "Oui" };
 
+// ——— Réponses de l'IA factice (version 7 : dossier d'enjeux, puis parcours, tests, supports) ———
+const enjeuxJson = (titre: string) =>
+  JSON.stringify({
+    resume: `Dossier d'enjeux de « ${titre} » : ce que le formateur doit savoir du sujet réel pour concevoir le parcours et ses évaluations.`,
+    enjeux: ["Structurer une démarche de prospection mesurable", "Réduire le coût d'acquisition d'un client"],
+    cadre: ["RGPD et prospection B2B (CNIL)", "Loi Hamon sur le démarchage téléphonique"],
+    notions_cles: ["Ciblage et segmentation", "Prise de contact multicanale", "Qualification BANT"],
+    erreurs_frequentes: ["Appeler sans avoir préparé son accroche"],
+    pratiques_actuelles: ["Social selling sur LinkedIn"],
+    public_vise: "Commerciaux, chargés d'affaires et dirigeants de TPE.",
+    prerequis: "Aucun prérequis.",
+    glossaire: [{ terme: "BANT", definition: "Budget, Authority, Need, Timing" }],
+    sources: [{ titre: "CNIL — prospection commerciale", url: "https://www.cnil.fr/fr/prospection-commerciale" }],
+  });
+const moduleIa = (i: number) => ({ titre: `Module IA ${i}`, objectifs: [`Maîtriser l'étape ${i} de la prospection`, "Identifier les cibles"], contenus: ["Segmentation", "Scripts d'appel"], methodes: "Apports et ateliers", mise_en_pratique: "Atelier : construire son fichier de prospects", evaluation: "Quiz", duree_heures: 99 });
+const parcoursJson = (n: number, objectifs = ["Cibler ses prospects", "Préparer sa prise de contact", "Conduire un entretien de découverte"]) =>
+  JSON.stringify({ objectifs, public_vise: "Commerciaux et dirigeants de TPE.", prerequis: "Aucun.", modules: Array.from({ length: n }, (_, i) => moduleIa(i + 1)) });
+const qcmJson = (titre: string, n: number) => JSON.stringify({ titre, questions: Array.from({ length: n }, (_, i) => ({ enonce: `Question ${i + 1} sur la prospection ?`, propositions: ["A", "B", "C", "D"], bonne_reponse: i % 4 })) });
+const TYPES_PLAN: TypeDiapo[] = ["titre", "objectifs", "sommaire", "amorce", "notion", "notion", "schema", "point_etape", "exemple", "notion", "pratique", "debriefing", "notion", "point_etape", "vigilance", "pratique", "notion", "pratique", "synthese", "quiz"];
+const planDiapos = (): Diapo[] => TYPES_PLAN.map((type, i) => ({ type, titre: `Diapositive ${i + 1} (${type})`, points: ["Un point", "Un autre point"], visuel: "Schéma", notes: "Notes du formateur" }));
+const diaposJson = () => JSON.stringify({ diapos: planDiapos() });
+/** Modules « à la main », comme le formateur peut les saisir, dont la somme des durées fait `heures`. */
+const modulesManuels = (heures: number, n: number): ModuleParcours[] => {
+  const r = validerModules(repartirHeures(heures, n).map((d, i) => ({ ...moduleIa(i + 1), duree_heures: d })));
+  if (!r.ok) throw new Error(r.erreurs.join(" ; "));
+  return r.valeur;
+};
+
 let b: Banc;
 let ia: ReturnType<typeof iaFactice>;
+/** File des réponses de l'IA factice : chaque test y dépose ce que l'IA doit « répondre ». */
+const reponsesIa: string[] = [];
 let sophie: Acteur;
 let marc: Acteur;
 let formationId: string;
@@ -56,7 +87,7 @@ let stagiaireId: string;
 let entrepriseId: string;
 
 beforeAll(async () => {
-  ia = iaFactice([]);
+  ia = iaFactice(reponsesIa);
   b = await creerBanc({ ia });
   sophie = await b.formateur();
   marc = await b.formateur("marc@formateur.example", "Marc", "Autre");
@@ -64,49 +95,49 @@ beforeAll(async () => {
 afterAll(() => b.fermer());
 
 describe("1. Générer le parcours avec seulement titre, heures, jours, tarif et nombre de modules", () => {
-  it("la trame produit exactement n modules dont la somme des durées égale la durée totale", () => {
+  it("la plateforme répartit les heures entre n modules par demi-heures : la somme fait toujours la durée totale", () => {
     for (const [heures, n] of [[21, 4], [14, 3], [7, 1], [35, 12], [10.5, 5]] as const) {
-      const modules = genererTrameParcours({ titre: "Prospection", heures, jours: 3, nb_modules: n });
-      expect(modules).toHaveLength(n);
-      expect(modules.reduce((a, m) => a + m.duree_heures, 0)).toBeCloseTo(heures, 5);
-      for (const m of modules) {
-        expect(m.objectifs.length).toBeGreaterThan(0);
-        expect(m.contenus.length).toBeGreaterThan(0);
-        expect(m.mise_en_pratique).toMatch(/Atelier/);
-      }
+      const durees = repartirHeures(heures, n);
+      expect(durees).toHaveLength(n);
+      expect(durees.reduce((a, d) => a + d, 0)).toBeCloseTo(heures, 5);
     }
     expect(repartirHeures(7, 3)).toEqual([2.5, 2.5, 2]);
   });
 
-  it("le service propose le parcours (trame), le formateur l'aménage, puis l'enregistre : programme et objectifs en sont déduits", async () => {
-    const p = await proposerParcours(b.s, sophie, { titre: "Prospection commerciale B2B", heures: 21, jours: 3, nb_modules: 4, mode: "trame" });
+  it("le service propose le parcours (IA : enjeux puis modules), le formateur l'aménage, puis l'enregistre : programme et objectifs en sont déduits", async () => {
+    reponsesIa.push(enjeuxJson("Prospection commerciale B2B"), parcoursJson(4));
+    const p = await proposerParcours(b.s, sophie, { titre: "Prospection commerciale B2B", heures: 21, jours: 3, nb_modules: 4 });
     expect(p.brouillon).toBe(true);
     expect(p.modules).toHaveLength(4);
+    expect(p.dossier_enjeux.notions_cles).toContain("Qualification BANT");
+    expect(p.public_vise).toBe("Commerciaux et dirigeants de TPE.");
     expect(await listerFormations(b.s, sophie)).toHaveLength(0); // rien n'est enregistré par la proposition
 
     const modules = p.modules.map((m, i) => (i === 0 ? { ...m, titre: "Cibler ses prospects" } : m)); // aménagement
-    const f = await creerFormation(b.s, sophie, { formation_titre: "Prospection commerciale B2B", formation_niveau: "Intermédiaire", formation_duree_heures_total: 21, formation_duree_jours: 3, formation_prix_unitaire_ht: 140_000, formation_modules: modules });
+    const f = await creerFormation(b.s, sophie, { formation_titre: "Prospection commerciale B2B", formation_niveau: "Intermédiaire", formation_duree_heures_total: 21, formation_duree_jours: 3, formation_prix_unitaire_ht: 140_000, formation_modules: modules, public_vise: p.public_vise, formation_prerequis: p.formation_prerequis, dossier_enjeux: p.dossier_enjeux });
     formationId = f.id;
     expect(f.formation_nb_modules).toBe(4);
     expect(f.programme).toContain("Module 1 — Cibler ses prospects");
     expect(f.formation_objectifs.split("\n").length).toBeGreaterThanOrEqual(3);
+    expect(f.enjeux_le).not.toBeNull();
   });
 
   it("refuse un parcours dont les modules ne totalisent pas la durée de la formation", async () => {
-    const modules = genererTrameParcours({ titre: "X", heures: 7, jours: 1, nb_modules: 2 });
-    await expect(creerFormation(b.s, sophie, { formation_titre: "Incohérente", formation_duree_heures_total: 14, formation_modules: modules })).rejects.toThrow(/somme des durées/);
+    await expect(creerFormation(b.s, sophie, { formation_titre: "Incohérente", formation_duree_heures_total: 14, formation_modules: modulesManuels(7, 2) })).rejects.toThrow(/somme des durées/);
   });
 
-  it("par l'IA : les durées sont imposées par la plateforme, et un nombre de modules erroné est refusé", async () => {
-    const module = (i: number) => ({ titre: `Module IA ${i}`, objectifs: ["Identifier les cibles"], contenus: ["Segmentation"], methodes: "Apports", mise_en_pratique: "Atelier", evaluation: "Quiz", duree_heures: 99 });
+  it("par l'IA : les durées sont imposées par la plateforme, et un nombre de modules erroné est refusé après une seconde tentative", async () => {
     ia.demandes.length = 0;
-    const r = iaFactice([JSON.stringify({ objectifs: ["A faire", "B faire", "C faire"], modules: [module(1), module(2), module(3)] }), JSON.stringify({ objectifs: ["A", "B", "C"], modules: [module(1)] })]);
-    b.s.ia = r;
-    const ok = await proposerParcours(b.s, sophie, { titre: "Prospection", heures: 14, jours: 2, nb_modules: 3, mode: "ia" });
+    reponsesIa.push(enjeuxJson("Prospection"), parcoursJson(3, ["A faire", "B faire", "C faire"]));
+    const ok = await proposerParcours(b.s, sophie, { titre: "Prospection", heures: 14, jours: 2, nb_modules: 3 });
     expect(ok.modules.map((m) => m.duree_heures)).toEqual([5, 4.5, 4.5]); // jamais les 99 h de l'IA
-    expect(r.demandes[0]).toMatch(/recherche approfondie/);
-    await expect(proposerParcours(b.s, sophie, { titre: "Prospection", heures: 14, jours: 2, nb_modules: 3, mode: "ia" })).rejects.toThrow(/pas exploitable/);
-    b.s.ia = ia;
+    expect(ia.demandes[0]).toMatch(/recherche web/);
+    expect(ia.demandes[1]).toContain("DOSSIER D'ENJEUX");
+    // Réponse inexploitable deux fois de suite (un module au lieu de trois) : refus, jamais de « réparation ».
+    reponsesIa.push(enjeuxJson("Prospection"), parcoursJson(1), parcoursJson(1));
+    await expect(proposerParcours(b.s, sophie, { titre: "Prospection", heures: 14, jours: 2, nb_modules: 3 })).rejects.toThrow(/pas exploitable/);
+    expect(ia.demandes.at(-1)).toContain("ta réponse précédente a été rejetée");
+    expect(reponsesIa).toEqual([]);
   });
 
   it("modifier la formation garde la version précédente, restaurable (« faire réapparaître »)", async () => {
@@ -121,33 +152,39 @@ describe("1. Générer le parcours avec seulement titre, heures, jours, tarif et
   });
 
   it("champs de convention et partie financière : enregistrés au catalogue et repris par un nouveau dossier", async () => {
-    await modifierFormation(b.s, sophie, formationId, { mode_financement: "opco", formation_opco: "OPCO EP (Entreprises de proximité)", formateur_cout_horaire: 6_000, formation_effectif_min: 2, formation_effectif_max: 8, formation_delai_acces: "Sous 2 semaines" });
+    await modifierFormation(b.s, sophie, formationId, { mode_financement: "opco", formation_opco: "OPCO EP (Entreprises de proximité)", formation_effectif_min: 2, formation_effectif_max: 8, formation_delai_acces: "Sous 2 semaines" });
     await expect(modifierFormation(b.s, sophie, formationId, { formation_effectif_min: 9 })).rejects.toThrow(/effectif maximum/);
   });
 });
 
 describe("2. Même fonctionnalité pour le test de positionnement, l'évaluation des acquis et les supports", () => {
-  it("la trame de test de positionnement est un QCM valide, enregistrable après aménagement", async () => {
-    const r = await proposerTest(b.s, sophie, { formation_id: formationId, type: "positionnement", nombre: 10, mode: "trame" });
+  it("le test de positionnement est un QCM rédigé par l'IA sur le dossier d'enjeux, validé, enregistrable après aménagement", async () => {
+    reponsesIa.push(qcmJson("Test de positionnement — Prospection", 10));
+    const r = await proposerTest(b.s, sophie, { formation_id: formationId, type: "positionnement", nombre: 10 });
     expect(validerQuestionnaire(r.questionnaire)).toEqual([]);
-    expect(r.questionnaire.questions.length).toBeLessThanOrEqual(10);
+    expect(r.questionnaire.questions).toHaveLength(10);
+    expect(ia.demandes.at(-1)).toContain("Qualification BANT"); // la formation a déjà son dossier d'enjeux : pas de nouvelle recherche
     const o = await enregistrerOutil(b.s, sophie, { type: "positionnement", titre: r.questionnaire.titre, formation_id: formationId, contenu: r.questionnaire });
     expect(o.formation_id).toBe(formationId);
-    const acquis = await proposerTest(b.s, sophie, { formation_id: formationId, type: "acquis", nombre: 5, mode: "trame" });
+    reponsesIa.push(qcmJson("Évaluation des acquis — Prospection", 5));
+    const acquis = await proposerTest(b.s, sophie, { formation_id: formationId, type: "acquis", nombre: 5 });
     expect(acquis.questionnaire.titre).toMatch(/Évaluation des acquis/);
+    expect(reponsesIa).toEqual([]);
   });
 
   it("plan de support : exactement 20 diapositives par module, dont mise en pratique, point d'étape et quiz", async () => {
-    const { diapos } = await proposerPlanSupport(b.s, sophie, { formation_id: formationId, module_index: 1, mode: "trame" });
+    reponsesIa.push(diaposJson());
+    const { diapos } = await proposerPlanSupport(b.s, sophie, { formation_id: formationId, module_index: 1 });
     expect(diapos).toHaveLength(20);
     const types = diapos.map((d) => d.type);
     expect(types).toContain("pratique");
     expect(types).toContain("point_etape");
     expect(types.at(-1)).toBe("quiz");
+    expect(ia.demandes.at(-1)).toContain("module 2");
   });
 
   it("produit un vrai fichier PPTX de 20 diapositives, rangé dans le coffre-fort ; le régénérer met l'ancien à la corbeille", async () => {
-    const plan = trameDiapos("Prospection commerciale B2B", genererTrameParcours({ titre: "P", heures: 21, jours: 3, nb_modules: 4 })[0]!, 1);
+    const plan = planDiapos();
     plan[0] = { ...plan[0]!, titre: "Titre aménagé par le formateur" };
     const r = await produireSupport(b.s, sophie, { formation_id: formationId, module_index: 0, diapos: plan });
     expect(r.diapositives).toBe(20);
@@ -166,10 +203,16 @@ describe("2. Même fonctionnalité pour le test de positionnement, l'évaluation
     await expect(produireSupport(b.s, sophie, { formation_id: formationId, module_index: 0, diapos: [{ type: "titre", titre: "Seule" }] })).rejects.toThrow(/incomplet/);
   });
 
-  it("tous les modules d'un coup", async () => {
-    const r = await produireTousLesSupports(b.s, sophie, { formation_id: formationId, mode: "trame" });
+  it("tous les modules d'un coup ; un module dont l'IA échoue n'empêche pas les autres", async () => {
+    reponsesIa.push(diaposJson(), diaposJson(), diaposJson(), diaposJson());
+    const r = await produireTousLesSupports(b.s, sophie, { formation_id: formationId });
     expect(r.produits).toHaveLength(4);
     expect(r.echecs).toEqual([]);
+    // Un seul plan disponible pour quatre modules : trois échecs signalés, un support produit.
+    reponsesIa.push(diaposJson());
+    const partiel = await produireTousLesSupports(b.s, sophie, { formation_id: formationId });
+    expect(partiel.produits).toHaveLength(1);
+    expect(partiel.echecs).toHaveLength(3);
   });
 });
 
@@ -266,7 +309,7 @@ describe("5. Inviter un apprenant à se positionner sur un parcours", () => {
 
   it("complet : date, signature tracée, PDF archivé ; formateur et apprenant reçoivent le PDF", async () => {
     const p = await lirePositionnementPublic(b.s, jeton);
-    await signerPositionnementPublic(b.s, jeton, { recueil: RECUEIL, reponses: p.questionnaire!.questions.map(() => 3), date: "2026-10-01", trace_png: tracePngDemo(4), lieu: "Mulhouse", consentement: true });
+    await signerPositionnementPublic(b.s, jeton, { recueil: RECUEIL, reponses: p.questionnaire!.questions.map((_, i) => i % 4), date: "2026-10-01", trace_png: tracePngDemo(4), lieu: "Mulhouse", consentement: true });
     const [ligne] = await listerPositionnements(b.s, sophie, { formation_id: formationId });
     expect(ligne!.statut).toBe("complet");
     expect(ligne!.score).toBe(100);
@@ -285,11 +328,12 @@ describe("5. Inviter un apprenant à se positionner sur un parcours", () => {
     await expect(signerPositionnementPublic(b.s, jeton, {})).rejects.toThrow(/déjà signé/);
   });
 
-  it("sans test sur le parcours, l'invitation en crée un depuis ses objectifs (on peut toujours inviter)", async () => {
+  it("sans test sur le parcours, l'invitation est refusée avec la marche à suivre (version 7 : plus de trame automatique)", async () => {
     const f = await creerFormation(b.s, sophie, { formation_titre: "Sans test", formation_objectifs: "Savoir faire A\nSavoir faire B\nSavoir faire C" });
-    const r = await inviterAuPositionnement(b.s, sophie, { stagiaire_id: stagiaireId, formation_id: f.id });
-    expect(r.test_cree).toBe(true);
-    expect((await listerOutils(b.s, sophie)).some((o) => o.formation_id === f.id && o.type === "positionnement")).toBe(true);
+    const demandesAvant = ia.demandes.length;
+    await expect(inviterAuPositionnement(b.s, sophie, { stagiaire_id: stagiaireId, formation_id: f.id })).rejects.toMatchObject({ code: "invalide", message: expect.stringContaining("Générer le test de positionnement") });
+    expect((await listerOutils(b.s, sophie)).some((o) => o.formation_id === f.id && o.type === "positionnement")).toBe(false);
+    expect(ia.demandes.length).toBe(demandesAvant); // aucune requête IA ne part sans demande du formateur
   });
 
   it("à la création du dossier, le positionnement signé est repris : recueil et test validés, sans ressaisie", async () => {
@@ -298,10 +342,12 @@ describe("5. Inviter un apprenant à se positionner sur un parcours", () => {
     const valides = vue.pieces.filter((p) => p.statut === "valide").map((p) => p.code);
     expect(valides).toEqual(expect.arrayContaining(["00-AVT", "01-AVT"]));
     expect(vue.formation.formation_opco).toBe("ATLAS"); // l'OPCO de l'entreprise prime sur celui du catalogue
-    expect(vue.formation.formateur_cout_horaire).toBe(6_000);
+    expect(vue.formation.formateur_cout_horaire).toBeNull(); // version 7 : la rémunération se calcule par la commission
+    // Repris d'un positionnement signé : aucun formulaire de recueil / positionnement n'est renvoyé à l'apprenant.
+    expect((await b.courriers()).filter((c) => c.dossier_id === d.id && c.type.startsWith("formulaire_"))).toEqual([]);
 
     // Partie financière modifiable dans le dossier jusqu'à la validation
-    await modifierDossier(b.s, sophie, d.id, { mode_financement: "entreprise", formation_prix_unitaire_ht: 120_000, formateur_cout_horaire: 5_500 });
+    await modifierDossier(b.s, sophie, d.id, { mode_financement: "entreprise", formation_prix_unitaire_ht: 120_000 });
     const apres = await lireDossier(b.s, sophie, d.id);
     expect(apres.mode_financement).toBe("entreprise");
     expect(apres.formation.formation_prix_unitaire_ht).toBe(120_000);
@@ -372,10 +418,10 @@ describe("8. Compte formateur ludoalbisser@gmail.com", () => {
 });
 
 describe("contrôles du domaine", () => {
-  it("la trame de positionnement pose une question par objectif, bornée", () => {
-    const modules = genererTrameParcours({ titre: "T", heures: 35, jours: 5, nb_modules: 12 });
-    const q = trameTestPositionnement("T", modules, 20);
-    expect(q.questions.length).toBeLessThanOrEqual(20);
-    expect(validerQuestionnaire(q)).toEqual([]);
+  it("les modules saisis ou proposés sont validés strictement : titre, durée, au moins un objectif et un contenu", () => {
+    expect(validerModules(modulesManuels(35, 12)).ok).toBe(true);
+    expect(validerModules([{ ...moduleIa(1), objectifs: [] }])).toMatchObject({ ok: false, erreurs: ["Module 1 : au moins un objectif."] });
+    expect(validerModules([moduleIa(1)], { nombre: 2 }).ok).toBe(false);
+    expect(validerModules("rien").ok).toBe(false);
   });
 });

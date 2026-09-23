@@ -119,15 +119,16 @@ const contexte = (f: Awaited<ReturnType<typeof lireFormation>>) => ({
 
 // ——— 1. Dossier d'enjeux (recherche web) ———
 
-const SchemaEnjeux = z.object({
-  titre: z.string().trim().min(3, "Indiquez l'intitulé de la formation.").max(200),
-  niveau: z.string().trim().max(100).default(""),
-  public_vise: z.string().trim().max(2000).default(""),
-  modalite: z.string().trim().max(20).default(""),
-  heures: z.number().positive().max(2000).nullable().default(null),
-});
+/** Ce que l'IA reçoit pour constituer le dossier d'enjeux : la description de la FORMATION, rien d'autre. */
+interface EntreeEnjeux {
+  titre: string;
+  niveau: string;
+  public_vise: string;
+  modalite: string;
+  heures: number | null;
+}
 
-async function rechercherEnjeux(s: Services, acteur: Acteur, e: z.infer<typeof SchemaEnjeux>): Promise<DossierEnjeux> {
+async function rechercherEnjeux(s: Services, acteur: Acteur, e: EntreeEnjeux): Promise<DossierEnjeux> {
   return demanderValide(s, acteur, `dossier d'enjeux « ${e.titre} »`, consigneEnjeux(e), (json, sources) => validerPropositionEnjeux(json, sources), { recherche: true, maxRecherches: 8, maxTokens: 6000 });
 }
 

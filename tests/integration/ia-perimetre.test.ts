@@ -41,8 +41,11 @@ describe("périmètre de l'IA", () => {
     }
   });
 
-  it("l'assistant IA n'est lu que par le service pédagogique (et par le démarrage, qui affiche s'il est actif)", () => {
+  it("l'assistant IA n'est lu que par le service pédagogique (le démarrage et les réglages ne font qu'afficher s'il est actif)", () => {
     const appels = sources.filter((f) => /\bs\.ia\b/.test(f.code)).map((f) => f.chemin).sort();
-    expect(appels).toEqual(["src/serveur/demarrer.ts", "src/serveur/services/pedagogie-ia.ts"]);
+    expect(appels).toEqual(["src/serveur/demarrer.ts", "src/serveur/services/pedagogie-ia.ts", "src/serveur/services/reglages.ts"]);
+    // Les réglages ne lisent que l'indicateur « disponible » (version 7) : jamais `rediger`.
+    const reglages = sources.find((f) => f.chemin === "src/serveur/services/reglages.ts")!;
+    expect(reglages.code).not.toMatch(/\.rediger\(/);
   });
 });

@@ -24,6 +24,18 @@ import type { Acteur } from "@/serveur/services/socle";
 const TRACE = `data:image/png;base64,${"iVBORw0KGgo".repeat(80)}`;
 const QCM = { titre: "Positionnement Excel", questions: [{ enonce: "Un TCD sert à…", propositions: ["Mettre en page", "Synthétiser des données"], bonne_reponse: 1 }] };
 const RECUEIL = { poste_anciennete: "Assistante, 4 ans", niveau_maitrise: "Notions de base", attentes: "Gagner du temps", besoins_principaux: "Les TCD", handicap: "Non", programme_transmis: "Oui" };
+const REPONSE_ENJEUX_IA = JSON.stringify({
+  resume: "Les tableaux croisés dynamiques sont l'outil de synthèse central d'Excel ; leur maîtrise conditionne la fiabilité du reporting.",
+  enjeux: ["Fiabiliser le reporting mensuel", "Gagner du temps sur la production des tableaux de bord"],
+  cadre: [],
+  notions_cles: ["Tableau croisé dynamique", "Segments et chronologies", "Power Query"],
+  erreurs_frequentes: ["Confondre champs de valeurs et étiquettes de lignes"],
+  pratiques_actuelles: ["Power Query pour l'import et le nettoyage"],
+  public_vise: "Assistants de gestion et comptables.",
+  prerequis: "Formules simples et mise en forme.",
+  glossaire: [],
+  sources: [{ titre: "Support Microsoft — TCD", url: "https://support.microsoft.com/fr-fr/excel" }],
+});
 const REPONSE_QCM_IA = JSON.stringify({
   titre: "Évaluation des acquis — Excel",
   questions: Array.from({ length: 5 }, (_, i) => ({ enonce: `Question ${i + 1} sur les TCD ?`, propositions: ["A", "B", "C", "D"], bonne_reponse: i % 4 })),
@@ -48,8 +60,12 @@ const piece = async (acteur: Acteur, code: string) => (await lireDossier(b.s, ac
 beforeAll(async () => {
   ia = iaFactice([
     "```json\n" + JSON.stringify({ objectifs: ["Construire un tableau croisé dynamique", "Automatiser un reporting mensuel", "Contrôler la qualité des données"], programme: "Jour 1 — Tableaux croisés dynamiques.\nJour 2 — Automatisation et contrôle." }) + "\n```",
+    // Version 7 : avant le premier QCM, l'IA constitue le dossier d'enjeux de la formation (recherche web), une fois pour toutes.
+    REPONSE_ENJEUX_IA,
     REPONSE_QCM_IA,
+    // Deux réponses inexploitables de suite : refus (une seconde tentative, jamais de « réparation »).
     JSON.stringify({ titre: "Mauvais", questions: [] }),
+    JSON.stringify({ titre: "Encore mauvais", questions: [] }),
   ]);
   b = await creerBanc({ ia });
   sophie = await b.formateur();
@@ -58,7 +74,7 @@ afterAll(() => b.fermer());
 
 describe("Espace pédagogique — « l'usage de l'IA est important sur la partie support pédagogique »", () => {
   it("l'IA propose objectifs et programme ; RIEN n'est enregistré tant que le formateur ne l'a pas fait", async () => {
-    expect(etatIa(b.s, sophie)).toEqual({ disponible: true });
+    expect(await etatIa(b.s, sophie)).toEqual({ disponible: true, description: "factice" });
     const brouillon = await proposerProgramme(b.s, sophie, { formation_titre: "Excel — tableaux croisés dynamiques", formation_duree_heures_total: 14 });
     expect(brouillon).toMatchObject({ brouillon: true, formation_objectifs: expect.stringContaining("Construire un tableau croisé dynamique") });
 
@@ -71,17 +87,21 @@ describe("Espace pédagogique — « l'usage de l'IA est important sur la partie
   it("l'IA propose un QCM d'évaluation des acquis fondé sur la formation, validé strictement", async () => {
     const r = await proposerQcm(b.s, sophie, { formation_id: formationId, type: "acquis", nombre: 5 });
     expect(r.questionnaire.questions).toHaveLength(5);
-    expect(ia.demandes.at(-1)).toContain("Jour 1 — Tableaux croisés dynamiques.");
-    // Réponse inexploitable : refusée, jamais « réparée ».
+    expect(ia.demandes.at(-2)).toContain("recherche web"); // le dossier d'enjeux d'abord…
+    expect(ia.demandes.at(-1)).toContain("Jour 1 — Tableaux croisés dynamiques."); // … puis le QCM, fondé sur la formation
+    expect(ia.demandes.at(-1)).toContain("Confondre champs de valeurs et étiquettes de lignes"); // et sur les erreurs fréquentes du dossier
+    // Réponse inexploitable (deux fois) : refusée, jamais « réparée ». Le dossier d'enjeux, lui, est enregistré : pas de nouvelle recherche.
+    const avant = ia.demandes.length;
     await expect(proposerQcm(b.s, sophie, { formation_id: formationId, type: "acquis", nombre: 5 })).rejects.toMatchObject({ code: "invalide" });
+    expect(ia.demandes.length - avant).toBe(2);
   });
 
   it("l'IA est réservée au formateur, et sans configuration elle est simplement indisponible", async () => {
     await expect(proposerQcm(b.s, b.admin, { formation_id: formationId, type: "acquis" })).rejects.toMatchObject({ code: "interdit" });
     const sansIa = await creerBanc();
     const autre = await sansIa.formateur();
-    expect(etatIa(sansIa.s, autre)).toEqual({ disponible: false });
-    await expect(proposerProgramme(sansIa.s, autre, { formation_titre: "Test IA" })).rejects.toMatchObject({ code: "conflit" });
+    expect(await etatIa(sansIa.s, autre)).toEqual({ disponible: false, description: "" });
+    await expect(proposerProgramme(sansIa.s, autre, { formation_titre: "Test IA" })).rejects.toMatchObject({ code: "conflit", message: expect.stringContaining("Organisme → Assistant IA") });
     await sansIa.fermer();
   });
 });

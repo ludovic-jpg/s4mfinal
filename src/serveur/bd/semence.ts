@@ -12,7 +12,8 @@ import { deposerPieceFormateur, mettreAJourMonProfil, soumettreCandidature } fro
 import { creerDossier, definirSeances, inviter, lireDossier, modifierDossier, renseignerObjectifsAtteints } from "../services/dossiers";
 import { enregistrerEvaluation } from "../services/evaluations";
 import { creerFormation, deposerDansCoffre, enregistrerOutil } from "../services/formations";
-import { produireTousLesSupports, proposerParcours } from "../services/pedagogie-ia";
+import { produireSupport } from "../services/pedagogie-ia";
+import { repartirHeures, type Diapo, type ModuleParcours } from "@/domaine/pedagogie/parcours";
 import { inviterAuPositionnement, lirePositionnementPublic, signerPositionnementPublic } from "../services/positionnements";
 import { executerAction } from "../services/pipeline";
 import { enregistrerEntreprise, enregistrerStagiaire } from "../services/repertoire";
@@ -50,6 +51,27 @@ const RECUEIL = {
   handicap: "Non",
   programme_transmis: "Oui",
 };
+/**
+ * Parcours de démonstration « Prospection commerciale B2B » (version 7 : le parcours et les supports sont produits par
+ * l'IA dans l'application ; la semence, qui tourne sans IA, embarque un parcours et des plans écrits d'avance).
+ */
+const MODULES_PROSPECTION: ModuleParcours[] = [
+  { titre: "Cibler ses prospects", objectifs: ["Définir son client idéal", "Constituer un fichier de prospection qualifié"], contenus: ["Segmentation et persona", "Sources de données B2B et RGPD", "Scoring des comptes"], methodes: "Apports, étude de cas", mise_en_pratique: "Atelier : construire son fichier de 30 comptes cibles", evaluation: "Fichier de prospection évalué sur grille" },
+  { titre: "Préparer et réussir la prise de contact", objectifs: ["Rédiger une accroche téléphonique et écrite", "Franchir le barrage de l'assistant"], contenus: ["Structure d'un appel de prospection", "E-mail et message LinkedIn", "Objections de premier contact"], methodes: "Jeux de rôle enregistrés", mise_en_pratique: "Atelier : 10 appels simulés avec débriefing", evaluation: "Grille d'observation des appels" },
+  { titre: "Conduire l'entretien de découverte", objectifs: ["Qualifier un besoin avec la méthode BANT", "Faire émerger les enjeux du prospect"], contenus: ["Questionnement ouvert et reformulation", "Qualification budget, décideur, besoin, calendrier", "Compte rendu d'entretien"], methodes: "Mises en situation filmées", mise_en_pratique: "Atelier : entretien de découverte à trois (vendeur, prospect, observateur)", evaluation: "Compte rendu d'entretien noté" },
+  { titre: "Organiser et piloter sa prospection", objectifs: ["Planifier ses actions hebdomadaires", "Suivre ses indicateurs de prospection"], contenus: ["Rituel hebdomadaire de prospection", "Pipeline et taux de transformation", "Relances et nurturing"], methodes: "Apports, plan d'action individuel", mise_en_pratique: "Atelier : plan de prospection à 90 jours", evaluation: "Plan d'action présenté au groupe" },
+].map((m, i) => ({ ...m, duree_heures: repartirHeures(21, 4)[i]! }));
+
+const TYPES_PLAN_DEMO = ["titre", "objectifs", "sommaire", "amorce", "notion", "notion", "schema", "point_etape", "exemple", "notion", "pratique", "debriefing", "notion", "point_etape", "vigilance", "pratique", "notion", "pratique", "synthese", "quiz"] as const;
+const planDemo = (m: ModuleParcours): Diapo[] =>
+  TYPES_PLAN_DEMO.map((type, i) => ({
+    type,
+    titre: type === "titre" ? m.titre : `${m.titre} — ${i + 1}`,
+    points: [m.contenus[i % m.contenus.length]!, m.objectifs[i % m.objectifs.length]!],
+    visuel: "Schéma à réaliser par le formateur",
+    notes: "Plan de démonstration : à remplacer par le support généré par l'IA.",
+  }));
+
 const NOTES = Object.fromEntries(["contenu", "attentes", "adaptation", "programme", "application", "pedagogie", "competences", "supports", "environnement", "globale"].map((k, i) => [k, String(i % 3 === 0 ? 4 : 5)]));
 
 async function acteurDe(s: Services, utilisateur_id: string): Promise<Acteur> {
@@ -142,13 +164,15 @@ export async function semer(s: Services): Promise<void> {
       ...(o.modalite === "distanciel" ? { formation_lien_visio: "https://visio.example/salle-formation" } : {}),
     });
     await definirSeances(s, sophie, d.id, Array.from({ length: jours }, (_, i) => [{ date: jour(o.debut + i), heure_debut: "09:00", heure_fin: "12:30" }, { date: jour(o.debut + i), heure_debut: "13:30", heure_fin: "17:00" }]).flat());
+    // Version 7 : recueil et positionnement sont renseignés par l'apprenant lui-même (jamais par le formateur).
     if (jalon === "brouillon") {
-      await enregistrerEvaluation(s, sophie, d.id, "recueil", { reponses: RECUEIL, stagiaire_id: o.stagiaires[0]! });
+      await enregistrerEvaluation(s, await apprenant(o.stagiaires[0]!, d.id), d.id, "recueil", { reponses: RECUEIL });
       return d.id;
     }
     for (const st of o.stagiaires) {
-      await enregistrerEvaluation(s, sophie, d.id, "recueil", { reponses: RECUEIL, stagiaire_id: st });
-      await enregistrerEvaluation(s, sophie, d.id, "positionnement", { reponses: [1, 1, 0, 1], stagiaire_id: st, ajustement: "Renforcer la partie « contrôle des données »." });
+      const acteur = await apprenant(st, d.id);
+      await enregistrerEvaluation(s, acteur, d.id, "recueil", { reponses: RECUEIL });
+      await enregistrerEvaluation(s, acteur, d.id, "positionnement", { reponses: [1, 1, 0, 1] });
     }
     await executerAction(s, sophie, d.id, "soumettre_validation");
     if (jalon === "soumis") return d.id;
@@ -224,7 +248,6 @@ export async function semer(s: Services): Promise<void> {
   await dossier("brouillon", { stagiaires: [lea.id], entreprise: dupont.id, formation: management.id, debut: 55 });
 
   // ——— « Modification 1 » (23/09/2026) : parcours généré, supports PPTX, coffre-fort, positionnements ———
-  const trame = await proposerParcours(s, sophie, { titre: "Prospection commerciale B2B", heures: 21, jours: 3, nb_modules: 4, niveau: "Intermédiaire", modalite: "presentiel", mode: "trame" });
   const prospection = await creerFormation(s, sophie, {
     formation_titre: "Prospection commerciale B2B",
     formation_niveau: "Intermédiaire",
@@ -235,9 +258,7 @@ export async function semer(s: Services): Promise<void> {
     formation_prix_groupe_ht: 450_000,
     formation_effectif_min: 2,
     formation_effectif_max: 8,
-    formation_modules: trame.modules,
-    formation_objectifs: trame.formation_objectifs,
-    programme: trame.programme,
+    formation_modules: MODULES_PROSPECTION,
     public_vise: "Commerciaux, chargés d'affaires, dirigeants de TPE.",
     formation_prerequis: "Aucun.",
     formation_delai_acces: "Sous 2 semaines",
@@ -245,14 +266,15 @@ export async function semer(s: Services): Promise<void> {
     mode_financement: "opco",
     formation_opco: "OPCO EP (Entreprises de proximité)",
   });
-  await produireTousLesSupports(s, sophie, { formation_id: prospection.id, mode: "trame" });
+  for (const [i, m] of MODULES_PROSPECTION.entries()) await produireSupport(s, sophie, { formation_id: prospection.id, module_index: i, diapos: planDemo(m) });
+  await enregistrerOutil(s, sophie, { type: "positionnement", titre: "Positionnement — prospection B2B", formation_id: prospection.id, contenu: { ...QCM_EXCEL, titre: "Positionnement — prospection B2B" } });
   await deposerDansCoffre(s, sophie, prospection.id, pdfFictif("Règlement intérieur"), { categorie: "qualite", partageable: false });
   const signe = await inviterAuPositionnement(s, sophie, { stagiaire_id: lea.id, formation_id: prospection.id, message: "Merci de compléter avant notre entretien." });
   const jetonLea = signe.lien.split("/").pop()!;
   const vueLea = await lirePositionnementPublic(s, jetonLea);
   await signerPositionnementPublic(s, jetonLea, {
     recueil: RECUEIL,
-    reponses: vueLea.questionnaire!.questions.map((_, i) => i % 4),
+    reponses: vueLea.questionnaire!.questions.map((_, i) => i % 3),
     date: jour(0),
     trace_png: tracePngDemo(3),
     lieu: "Mulhouse",

@@ -18,7 +18,7 @@
 import { and, desc, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 import QRCode from "qrcode";
-import { sansCorrige, type Questionnaire } from "@/domaine/formulaires/qcm";
+import { sansCorrige } from "@/domaine/formulaires/qcm";
 import { echapperHtml as e } from "@/domaine/gabarits/moteur";
 import { estTerminal, type SousStatut } from "@/domaine/pipeline/statuts";
 import { definitionPiece } from "@/domaine/referentiel/pieces";

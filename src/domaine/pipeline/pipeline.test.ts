@@ -47,7 +47,7 @@ describe("parcours nominal, de Brouillon à Archivé", () => {
       ["enregistrer_accord", "systeme", "accord_financement", ["GENERER_ET_ENVOYER_ODM", "OUVRIR_COFFRE_AUX_APPRENANTS"]],
       ["envoyer_elements_pedagogiques", "formateur", "envoi_elements_pedagogiques", ["GENERER_CONVOCATIONS", "EMAIL_APPRENANTS_ELEMENTS_PEDAGOGIQUES"]],
       ["demarrer_formation", "formateur", "formation_debutee", ["GENERER_PIECES_DE_REALISATION"]],
-      ["terminer_formation", "formateur", "fin_dossier_complet", ["GENERER_PIECES_DE_FIN", "PLANIFIER_SATISFACTION_A_FROID"]],
+      ["terminer_formation", "formateur", "fin_dossier_complet", ["GENERER_PIECES_DE_FIN", "ENVOYER_FORMULAIRES_DE_FIN", "PLANIFIER_SATISFACTION_A_FROID"]],
       ["demander_paiement", "admin", "demande_paiement", ["GENERER_FACTURE_OF"]],
       ["enregistrer_paiement", "admin", "paiement_receptionne", []],
       ["cloturer", "admin", "archive", ["ARCHIVER_EN_LECTURE_SEULE"]],

@@ -12,7 +12,7 @@ import { creerApp } from "./http/app";
 import { ArchiveLocale } from "./ports/archive";
 import { CourrierJournalise, creerTransportDepuisReglages, creerTransportSmtp, type Expedition } from "./ports/courrier";
 import { chiffreurDepuisEnvironnement } from "./ports/chiffrement";
-import { configIa, configSmtp } from "./services/reglages";
+import { configSmtp } from "./services/reglages";
 import { horlogeSysteme } from "./ports/divers";
 import { ConvertisseurChromium } from "./ports/pdf";
 import { creerAssistant } from "./ports/ia";
