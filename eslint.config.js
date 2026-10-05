@@ -6,7 +6,7 @@ import tseslint from "typescript-eslint";
 import prettier from "eslint-config-prettier";
 
 export default tseslint.config(
-  { ignores: ["dist", "node_modules", "donnees", "coverage", "playwright-report", "test-results", "src/client/routeTree.gen.ts", "drizzle"] },
+  { ignores: ["dist", "node_modules", "donnees", "coverage", "playwright-report", "test-results", "src/client/routeTree.gen.ts", "drizzle", "supabase"] },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {

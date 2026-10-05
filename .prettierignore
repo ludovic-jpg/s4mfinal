@@ -7,3 +7,5 @@ gabarits
 src/client/routeTree.gen.ts
 src/domaine/referentiel/*.genere.ts
 package-lock.json
+supabase
+lovable
